@@ -1,0 +1,25 @@
+{
+	"name": "claude-seats",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"packageManager": "pnpm@10.28.1",
+	"engines": {
+		"node": ">=24"
+	},
+	"scripts": {
+		"benchmark:statusline": "python3 scripts/statusline-benchmark.py",
+		"typecheck": "tsgo --noEmit",
+		"lint": "oxlint --type-aware --deny-warnings --report-unused-disable-directives",
+		"format": "biome check --error-on-warnings",
+		"test": "node --test",
+		"verify": "pnpm typecheck && pnpm lint && pnpm format && pnpm test"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.5.14",
+		"@types/node": "^24.13.5",
+		"@typescript/native-preview": "7.0.0-dev.20260707.2",
+		"oxlint": "^1.83.0",
+		"oxlint-tsgolint": "^7.0.2002"
+	}
+}

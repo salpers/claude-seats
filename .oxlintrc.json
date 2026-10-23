@@ -1,0 +1,54 @@
+{
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	"plugins": ["typescript", "unicorn", "oxc", "promise", "node", "import"],
+	"env": { "node": true },
+	"categories": {
+		"correctness": "error",
+		"suspicious": "error",
+		"pedantic": "error",
+		"perf": "error",
+		"style": "error",
+		"restriction": "error",
+		"nursery": "error"
+	},
+	"rules": {
+		"typescript/consistent-type-assertions": [
+			"error",
+			{ "assertionStyle": "never" }
+		],
+		"one-var": ["error", "never"],
+		"no-duplicate-imports": ["error", { "allowSeparateTypeImports": true }],
+		// Biome owns import ordering; the two sort orders conflict.
+		"sort-imports": "off",
+		// The type-aware typescript/require-await also recognizes returned promises.
+		"require-await": "off",
+		// Runtime dependencies are exclusively Node built-ins.
+		"import/no-nodejs-modules": "off",
+		// Pure core functions use named exports; no-default-export enforces the opposite convention.
+		"import/no-named-export": "off",
+		// Keep the named-export convention even when a module has only one export.
+		"import/prefer-default-export": "off",
+		// Node 24 supports async/await natively; promise-only syntax is unnecessary.
+		"oxc/no-async-await": "off",
+		// Object spread is native in Node 24 and preferred by Biome over Object.assign.
+		"oxc/no-rest-spread-properties": "off",
+		// This ESM-only CLI and its node:test suite are never loaded with require().
+		"node/no-top-level-await": "off"
+	},
+	"overrides": [
+		{
+			"files": ["tests/tooling.test.ts"],
+			"rules": {
+				// Gate tests wait for isolated CLI processes; blocking cannot affect application code.
+				"node/no-sync": "off"
+			}
+		},
+		{
+			"files": ["src/output.ts"],
+			"rules": {
+				// CLI output is centralized here so other modules cannot accidentally log secrets.
+				"no-console": "off"
+			}
+		}
+	]
+}

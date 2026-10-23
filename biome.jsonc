@@ -1,0 +1,85 @@
+{
+	"$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+	"vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+	"formatter": { "enabled": true },
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"a11y": "error",
+			"complexity": "error",
+			"correctness": "error",
+			"nursery": "error",
+			"performance": "error",
+			"security": "error",
+			"style": "error",
+			"suspicious": "error"
+		}
+	},
+	"assist": {
+		"enabled": true,
+		"actions": { "source": { "organizeImports": "on" } }
+	},
+	"overrides": [
+		{
+			"includes": ["**"],
+			"linter": {
+				"rules": {
+					"correctness": {
+						// Runtime dependencies are exclusively Node built-ins.
+						"noNodejsModules": "off",
+						// Qwik closure serialization does not apply to this Node-only CLI.
+						"useQwikValidLexicalScope": "off"
+					},
+					"complexity": {
+						// tsgo requires bracket access for index signatures; Oxlint's typed dot-notation handles the rest.
+						"useLiteralKeys": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": ["**/*.test.ts"],
+			"linter": {
+				"rules": {
+					"style": {
+						// node:test passes TestContext as its first argument, not a done callback.
+						"noDoneCallback": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": ["tests/tooling.test.ts"],
+			"linter": {
+				"rules": {
+					"style": {
+						// Child verification processes must use the same Node executable as the parent test.
+						"noProcessEnv": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": ["src/cli.ts", "src/statusline-cli.mjs"],
+			"linter": {
+				"rules": {
+					"style": {
+						// The CLI boundary reads the documented environment overrides once for the pure core.
+						"noProcessEnv": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": ["src/output.ts"],
+			"linter": {
+				"rules": {
+					"suspicious": {
+						// CLI output is centralized here so other modules cannot accidentally log secrets.
+						"noConsole": "off"
+					}
+				}
+			}
+		}
+	]
+}
