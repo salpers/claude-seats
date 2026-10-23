@@ -8,6 +8,8 @@ type ParsedArgs =
 	| { readonly kind: "doctor"; readonly ok: true }
 	| { readonly kind: "install"; readonly ok: true }
 	| { readonly kind: "menu"; readonly ok: true }
+	| { readonly kind: "migrate"; readonly ok: true }
+	| { readonly kind: "migrate-apply"; readonly ok: true }
 	| {
 			readonly kind: "auto";
 			readonly ok: true;
@@ -37,11 +39,25 @@ const parseSelector = (
 	return usage(names);
 };
 
+const parseMigrate = (args: readonly string[]): ParsedArgs => {
+	const flags = args.slice(selectorLength).join(" ");
+	if (flags === "") {
+		return { kind: "migrate", ok: true };
+	}
+	if (flags === "--apply") {
+		return { kind: "migrate-apply", ok: true };
+	}
+	return { ok: false, reason: "Use cc migrate or cc migrate --apply." };
+};
+
 const parseCommand = (
-	kind: "doctor" | "install" | "menu",
-	length: number,
+	kind: "doctor" | "install" | "menu" | "migrate",
+	args: readonly string[],
 ): ParsedArgs => {
-	if (length === selectorLength) {
+	if (kind === "migrate") {
+		return parseMigrate(args);
+	}
+	if (args.length === selectorLength) {
 		return { kind, ok: true };
 	}
 	return { ok: false, reason: `Use cc ${kind} without additional arguments.` };
@@ -52,8 +68,13 @@ const parseArgs = (
 	names: readonly SeatName[],
 ): ParsedArgs => {
 	const [first] = args;
-	if (first === "doctor" || first === "install" || first === "menu") {
-		return parseCommand(first, args.length);
+	if (
+		first === "doctor" ||
+		first === "install" ||
+		first === "menu" ||
+		first === "migrate"
+	) {
+		return parseCommand(first, args);
 	}
 	if (first === "@") {
 		if (args.length === selectorLength) {

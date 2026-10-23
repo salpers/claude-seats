@@ -76,8 +76,14 @@ const select = async (
 	registry: SeatsResult,
 	options: SeatEnvironment,
 ): Promise<void> => {
-	// Doctor and install report an invalid seat config themselves.
-	if (parsed.ok && (parsed.kind === "doctor" || parsed.kind === "install")) {
+	// Setup commands report an invalid seat config themselves.
+	if (
+		parsed.ok &&
+		(parsed.kind === "doctor" ||
+			parsed.kind === "install" ||
+			parsed.kind === "migrate" ||
+			parsed.kind === "migrate-apply")
+	) {
 		await setupCommand(parsed.kind, options);
 		return;
 	}

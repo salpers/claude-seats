@@ -91,4 +91,4 @@ const layoutProblem = (entry: LayoutEntry): string => {
 };
 
 export type { LayoutEntry };
-export { layoutProblem, setupLayout };
+export { layoutProblem, setupLayout, sharedDirectories };

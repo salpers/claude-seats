@@ -68,6 +68,9 @@ Put the seat names in `~/.claude-shared/seats.json`, in registry order:
    cc install
    ```
 
+   If your seats already have sessions, memory or history, `cc install` stops.
+   Do [Move existing seat data](#move-existing-seat-data) instead, then continue with step 3.
+
 3. Add this line to `~/.zshrc`, after your Node setup:
 
    ```zsh
@@ -81,7 +84,7 @@ Put the seat names in `~/.claude-shared/seats.json`, in registry order:
 `cc install` does these steps:
 
 - Links `projects/`, `history.jsonl`, `file-history/`, `shell-snapshots/` and `tasks/` of each seat to `~/.claude-shared/`.
-- Links `settings.json` of `dev`, `dev2` and `dev3` to `~/.claude/settings.json`.
+- Links `settings.json` of each seat except `main` to `~/.claude/settings.json`.
 - Sets the statusline and `autoContinueAtUsageLimit: false`.
 - Does not read credentials, log in or change `.zshrc`.
 - Stops before it changes a file if it finds conflicting data.
@@ -103,6 +106,8 @@ Put the seat names in `~/.claude-shared/seats.json`, in registry order:
 | `cc @` | Show credentials, usage and live sessions for each seat. |
 | `cc doctor` | Check the setup. Change nothing. |
 | `cc install` | Install or repair the setup. |
+| `cc migrate` | Show how existing seat data moves to the shared store. Change nothing. |
+| `cc migrate --apply` | Move existing seat data to the shared store, then install. |
 | `cc menu` | Print the seat table in SwiftBar format. |
 
 `cc` writes the selected seat to stderr, for example `cc: using dev2`.
@@ -134,6 +139,28 @@ Thus, you can pipe the Claude output.
 
 If the usage endpoint fails, `cc` uses cached data up to 10 minutes old.
 If no cache is available, `cc` sends a small Haiku probe to each seat.
+
+## Move existing seat data
+
+Use this procedure when your seats already have their own sessions, memory or history.
+
+1. Quit every Claude session on every seat.
+2. Run `cc migrate`. Read the plan. Nothing changes.
+3. Run `cc migrate --apply`. It moves the files, then runs `cc install`.
+4. If the output shows set-aside files, open Claude Code in this checkout and run
+   `/merge-seat-conflicts`. The skill merges each file into the shared store.
+
+| Seat file | Result |
+|---|---|
+| Not in the shared store | Moved to the shared store. |
+| Same content in the shared store | Removed as a duplicate. |
+| Different content | Set aside in `~/.claude-shared/_conflicts/<seat>/`. |
+| `history.jsonl` | Lines added to the shared history, in time order. |
+| `settings.json` of a seat other than `main` | Set aside, then linked to `~/.claude/settings.json`. |
+
+> [!NOTE]
+> `cc migrate --apply` writes each action to `~/.claude-shared/_migration-<time>.log`.
+> It refuses to start while a Claude session is live.
 
 ## Move a session to a different seat
 
