@@ -1,0 +1,110 @@
+import type { ButtonProps, Elements, UiNode } from "./api.ts";
+
+interface PanelRow {
+	readonly alert: boolean;
+	readonly seat: string;
+	readonly text: string;
+}
+type View =
+	| { readonly kind: "loading" }
+	| { readonly kind: "error"; readonly reason: string }
+	| {
+			readonly current: string;
+			readonly kind: "rows";
+			readonly rows: readonly PanelRow[];
+	  };
+
+const success = 0;
+const first = 1;
+// Hotkeys are single digits, so only the first nine seats get one.
+const lastHotkey = 9;
+
+const isPanelRow = (value: unknown): value is PanelRow =>
+	typeof value === "object" &&
+	value !== null &&
+	"alert" in value &&
+	typeof value.alert === "boolean" &&
+	"seat" in value &&
+	typeof value.seat === "string" &&
+	"text" in value &&
+	typeof value.text === "string";
+
+const parseRows = (json: string): readonly PanelRow[] | false => {
+	try {
+		const parsed: unknown = JSON.parse(json);
+		if (Array.isArray(parsed) && parsed.every((row) => isPanelRow(row))) {
+			return parsed;
+		}
+	} catch {
+		// Reported as unreadable below.
+	}
+	return false;
+};
+
+// Cc answers on stdout as NUL-separated fields: "display", then the JSON.
+const panelView = (
+	result: Readonly<{ exitCode: number; stderr: string; stdout: string }>,
+	current: string,
+): View => {
+	const [kind, json = ""] = result.stdout.split("\0");
+	const rows = parseRows(json);
+	if (result.exitCode !== success || kind !== "display" || rows === false) {
+		const [line = ""] = result.stderr.trim().split("\n");
+		return {
+			kind: "error",
+			reason: `Seat usage unavailable. ${line}`.trim(),
+		};
+	}
+	return { current, kind: "rows", rows };
+};
+
+const hotkeyFor = (index: number): Pick<ButtonProps, "hotkey"> => {
+	if (index >= lastHotkey) {
+		return {};
+	}
+	return { hotkey: String(index + first) };
+};
+
+const marker = (row: PanelRow, current: string): string => {
+	if (row.seat === current) {
+		return "●";
+	}
+	return " ";
+};
+
+const hint = (count: number): string =>
+	`1–${String(Math.min(count, lastHotkey))} or click: move this session · ↑↓ Enter · Esc: close`;
+
+// One button per seat: rows the menu bar colours red are dim; ● marks this session's seat.
+const paneTree = (
+	ui: Elements,
+	view: View,
+	pick: (seat: string) => Promise<void>,
+): UiNode => {
+	if (view.kind === "loading") {
+		return ui.Text({ children: ["Reading seat usage…"], dimColor: true });
+	}
+	if (view.kind === "error") {
+		return ui.Text({ children: [view.reason] });
+	}
+	return ui.Box({
+		children: [
+			...view.rows.map((row, index) =>
+				ui.Button({
+					dimColor: row.alert,
+					key: `seat-${row.seat}`,
+					label: `${marker(row, view.current)} ${row.text}`,
+					onPress: async () => pick(row.seat),
+					plain: true,
+					...hotkeyFor(index),
+				}),
+			),
+			ui.Text({ children: [" "] }),
+			ui.Text({ children: [hint(view.rows.length)], dimColor: true }),
+		],
+		flexDirection: "column",
+	});
+};
+
+export type { View };
+export { panelView, paneTree };

@@ -54,7 +54,12 @@
 			"files": ["mod/**/*.ts"],
 			"rules": {
 				// The mods validator requires the mods API parameter to be spelled $.
-				"id-length": ["error", { "exceptions": ["$"] }]
+				"id-length": ["error", { "exceptions": ["$"] }],
+				// $.ui.resolve returns element factories named like components.
+				"new-cap": [
+					"error",
+					{ "capIsNewExceptions": ["Box", "Button", "Text"] }
+				]
 			}
 		}
 	]

@@ -8,6 +8,7 @@ type ParsedArgs =
 	| { readonly kind: "doctor"; readonly ok: true }
 	| { readonly kind: "install"; readonly ok: true }
 	| { readonly kind: "menu"; readonly ok: true }
+	| { readonly kind: "panel"; readonly ok: true }
 	| { readonly kind: "migrate"; readonly ok: true }
 	| { readonly kind: "migrate-apply"; readonly ok: true }
 	| {
@@ -51,7 +52,7 @@ const parseMigrate = (args: readonly string[]): ParsedArgs => {
 };
 
 const parseCommand = (
-	kind: "doctor" | "install" | "menu" | "migrate",
+	kind: "doctor" | "install" | "menu" | "migrate" | "panel",
 	args: readonly string[],
 ): ParsedArgs => {
 	if (kind === "migrate") {
@@ -72,7 +73,8 @@ const parseArgs = (
 		first === "doctor" ||
 		first === "install" ||
 		first === "menu" ||
-		first === "migrate"
+		first === "migrate" ||
+		first === "panel"
 	) {
 		return parseCommand(first, args);
 	}

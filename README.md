@@ -22,7 +22,7 @@ When a seat is at its limit, `cc -r` moves your session to a different seat.
 |---|---|---|
 | 🧭 | **Auto-routing** | Starts each session on the seat with the lowest usage. |
 | ⚖️ | **Load spread** | Puts concurrent sessions on different seats. |
-| 🔁 | **Hand-off** | Moves a session to a different seat with `/seat` in Claude, or with `cc -r`. |
+| 🔁 | **Hand-off** | Moves a session to a different seat with `/seat` or the `/seats` pane in Claude, or with `cc -r`. |
 | ⚠️ | **Limit warning** | Shows a line in Claude when a usage window reaches 90 %. |
 | 🛟 | **Fallback** | Uses cached usage or a small probe when the usage endpoint fails. |
 | 📊 | **Statusline** | Shows the seat and its 5h / 7d usage in Claude Code. |
@@ -113,8 +113,10 @@ Put the seat names in `~/.claude-shared/seats.json`, in registry order:
 | `cc migrate` | Show how existing seat data moves to the shared store. Change nothing. |
 | `cc migrate --apply` | Move existing seat data to the shared store, then install. |
 | `cc menu` | Print the seat table in SwiftBar format. |
+| `cc panel` | Print the seat rows as JSON for the `/seats` pane. |
 | `/seat <seat>` (in Claude) | Move this session to this seat. |
 | `/seat` (in Claude) | Move this session to the best other seat. |
+| `/seats` (in Claude) | Show the usage of all seats. Select a row to move this session. |
 
 `cc` writes the selected seat to stderr, for example `cc: using dev2`.
 Thus, you can pipe the Claude output.
@@ -177,9 +179,21 @@ In a Claude session that `cc` started, type `/seat dev3`, or `/seat` for the bes
 
 All seats share the session store, so each seat can find the session.
 
-- When the 5h or 7d window reaches 90 %, a line under the prompt shows the usage and points to `/seat`.
+To select from the usage table, type `/seats`. A pane shows the menu bar rows: ● marks the seat of this session, and dim rows are the seats that the menu bar shows in red.
+
+- Press `1`–`9`, or move with ↑ ↓ and press Enter. The current seat stays open with a message.
+- Click a row when Claude Code uses fullscreen rendering.
+- Press Esc to close the pane.
+
+To open the pane with a key, add this binding to the `Chat` context in `~/.claude/keybindings.json`:
+
+```json
+"meta+s": "command:seats"
+```
+
+- When the 5h or 7d window reaches 90 %, a line under the prompt shows the usage and points to `/seats`.
 - The new seat has no prompt cache for the session. The first turn reads the full context again and counts against the new seat.
-- `/seat` needs Claude Code 2.1.287 or newer. For each launch, `cc` loads the `seat-handoff` mod from [`mod/`](mod/).
+- `/seat` and `/seats` need Claude Code 2.1.287 or newer. For each launch, `cc` loads the `seat-handoff` mod from [`mod/`](mod/).
 
 Without `/seat`: quit Claude, run `cc -r` in the same project directory, then select the session in the picker.
 
@@ -214,7 +228,7 @@ ln -s "$PWD/bin/claude-seats.5m.sh" ~/SwiftBar/claude-seats.5m.sh
 - State goes to `~/.claude-shared/_seats/` (mode `0700`, files `0600`).
 - The state has the usage cache, cooldowns, claims and `decisions.log`.
 - `decisions.log` records each seat selection. It does not record arguments or credentials.
-- The `seat-handoff` mod runs in Claude Code with your permissions. It reads the seat names from its environment. It writes only the hand-off file: a seat name and a session ID.
+- The `seat-handoff` mod runs in Claude Code with your permissions. It reads the seat names from its environment. To show `/seats`, it runs `cc panel` with Node. It writes only the hand-off file: a seat name and a session ID.
 - Before each launch, `cc` sets `autoContinueAtUsageLimit: false`. Thus, a session stops at the limit and does not wait.
 
 ## Configuration
@@ -237,7 +251,7 @@ pnpm verify   # tsgo → oxlint → biome → node --test
 ```
 
 - No build step. Node 24 runs the TypeScript directly.
-- `mod/` is the Claude Code mod for `/seat`. `claude plugin validate ./mod` lists what it reads and calls.
+- `mod/` is the Claude Code mod for `/seat` and `/seats`. `claude plugin validate ./mod` lists what it reads and calls.
 - No runtime dependencies. All packages are development tools.
 - Tests use temporary homes, fake credentials and a fake `claude` binary.
 - Tests do not touch the real keychain, the real seats or Anthropic.

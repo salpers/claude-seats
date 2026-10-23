@@ -4,8 +4,8 @@ import { parseArgs } from "./args.ts";
 
 const names = ["main", "dev", "dev2", "dev3"];
 
-await test("doctor and install are standalone router commands; escaped or seat-specific words pass through", (): void => {
-	for (const kind of ["doctor", "install"]) {
+await test("doctor, install, menu and panel are standalone router commands; escaped or seat-specific words pass through", (): void => {
+	for (const kind of ["doctor", "install", "menu", "panel"]) {
 		deepStrictEqual(parseArgs([kind], names), { kind, ok: true });
 		deepStrictEqual(parseArgs([kind, "private argument"], names), {
 			ok: false,

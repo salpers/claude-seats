@@ -1,6 +1,6 @@
 import { deepStrictEqual, ok, strictEqual } from "node:assert/strict";
 import { test } from "node:test";
-import { formatMenu } from "./menubar.ts";
+import { formatMenu, formatPanel } from "./menubar.ts";
 import type { SeatRow } from "./output.ts";
 import { createSeats } from "./seats.ts";
 import type { SeatUsage } from "./usage-probe.ts";
@@ -86,4 +86,17 @@ await test("a loaded or unreadable seat is coloured and never wins the title", (
 	// A seat with no credential reads as full, so it is never offered as the free one.
 	ok(dev.endsWith(" color=red"));
 	ok(dev.includes("not logged in"));
+});
+
+await test("the /seats pane gets each menu row's text and its red flag as JSON", (): void => {
+	const lines = formatMenu(buildRows())
+		.split("\n")
+		.filter((row): boolean => row.includes("terminal=true"));
+	const expected = lines.map((line) => ({
+		alert: line.endsWith(" color=red"),
+		seat: line.slice(titleRow, line.indexOf(" ")),
+		text: line.slice(titleRow, line.indexOf(" | ")),
+	}));
+	const panel: unknown = JSON.parse(formatPanel(buildRows()));
+	deepStrictEqual(panel, expected);
 });

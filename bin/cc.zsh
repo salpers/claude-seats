@@ -44,7 +44,7 @@ cc() {
           export CLAUDE_CONFIG_DIR="${fields[2]}"
         fi
         unset CLAUDE_SEATS_AVOID
-        export CLAUDE_SEATS_HANDOFF_FILE="$handoff" CLAUDE_SEATS_CURRENT="${fields[6]}" CLAUDE_SEATS_NAMES="${fields[7]}"
+        export CLAUDE_SEATS_HANDOFF_FILE="$handoff" CLAUDE_SEATS_CURRENT="${fields[6]}" CLAUDE_SEATS_NAMES="${fields[7]}" CLAUDE_SEATS_ENTRYPOINT="$_CLAUDE_SEATS_ENTRYPOINT"
         export CLAUDE_CODE_PLUGIN_DIRS="${_CLAUDE_SEATS_ENTRYPOINT:h:h}/mod${CLAUDE_CODE_PLUGIN_DIRS:+:$CLAUDE_CODE_PLUGIN_DIRS}"
         exec -- "${fields[3]}" "$@"
       )

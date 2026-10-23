@@ -65,11 +65,18 @@ const selectLaunch = async (
 };
 
 const selectSeats = async (
-	parsed: Extract<ParsedArgs, { kind: "auto" | "launch" | "list" | "menu" }>,
+	parsed: Extract<
+		ParsedArgs,
+		{ kind: "auto" | "launch" | "list" | "menu" | "panel" }
+	>,
 	seats: readonly Seat[],
 	options: SeatEnvironment,
 ): Promise<void> => {
-	if (parsed.kind === "list" || parsed.kind === "menu") {
+	if (
+		parsed.kind === "list" ||
+		parsed.kind === "menu" ||
+		parsed.kind === "panel"
+	) {
 		await listSeats(seats, options, parsed.kind);
 		return;
 	}

@@ -21,6 +21,31 @@
 	},
 	"overrides": [
 		{
+			"includes": ["mod/**"],
+			"linter": {
+				"rules": {
+					"style": {
+						// $.ui.resolve returns element factories named like components: Box, Button, Text.
+						"useNamingConvention": {
+							"level": "error",
+							"options": {
+								"conventions": [
+									{
+										"selector": { "kind": "typeProperty" },
+										"formats": ["camelCase", "PascalCase"]
+									},
+									{
+										"selector": { "kind": "objectLiteralProperty" },
+										"formats": ["camelCase", "PascalCase"]
+									}
+								]
+							}
+						}
+					}
+				}
+			}
+		},
+		{
 			"includes": ["**"],
 			"linter": {
 				"rules": {

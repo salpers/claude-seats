@@ -106,6 +106,20 @@ const titleLine = (rows: readonly SeatRow[]): string => {
 	return `${title} |${colour}`;
 };
 
+// One entry per seat for the /seats pane: the menu row's text, and whether the menu colours it red.
+const formatPanel = (rows: readonly SeatRow[]): string => {
+	const padded = padColumns(
+		rows.map((row): readonly string[] => seatCells(row)),
+	);
+	return JSON.stringify(
+		rows.map((row, index) => ({
+			alert: seatPressure(row) >= alertPercent,
+			seat: row.seat.name,
+			text: padded[index] ?? "",
+		})),
+	);
+};
+
 const formatMenu = (rows: readonly SeatRow[]): string => {
 	const padded = padColumns(
 		rows.map((row): readonly string[] => seatCells(row)),
@@ -119,4 +133,4 @@ const formatMenu = (rows: readonly SeatRow[]): string => {
 	].join("\n");
 };
 
-export { formatMenu };
+export { formatMenu, formatPanel };

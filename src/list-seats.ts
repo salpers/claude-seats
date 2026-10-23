@@ -1,6 +1,6 @@
 import path from "node:path";
 import { checkCredential } from "./credentials.ts";
-import { formatMenu } from "./menubar.ts";
+import { formatMenu, formatPanel } from "./menubar.ts";
 import { readCredential } from "./oauth.ts";
 import type { SeatRow } from "./output.ts";
 import { formatSeats, printError, printReply } from "./output.ts";
@@ -49,9 +49,14 @@ const listSeats = async (
 		env: Readonly<Record<string, string | undefined>>;
 		home: string;
 	}>,
-	kind: "list" | "menu",
+	kind: "list" | "menu" | "panel",
 ): Promise<void> => {
 	const rows = await readSeatRows(seats, env, home);
+	// The /seats pane in Claude Code reads this JSON; it shows the menu bar's rows.
+	if (kind === "panel") {
+		printReply(["display", formatPanel(rows)]);
+		return;
+	}
 	// The menu bar has nowhere to show a stderr notice, so it renders rows only.
 	if (kind === "menu") {
 		printReply(["display", formatMenu(rows)]);

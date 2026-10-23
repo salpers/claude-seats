@@ -1,13 +1,25 @@
 import { deepStrictEqual, strictEqual } from "node:assert/strict";
 import { test } from "node:test";
-import type { SeatsApi } from "./register.ts";
-import { handOff, showLimits } from "./register.ts";
+import type { Elements, SeatsApi, UiNode } from "./api.ts";
+import { handOff, openSeats, pick, showLimits } from "./register.ts";
 
 const sessionId = "11111111-2222-4333-8444-555555555555";
 const handoffFile = "/tmp/cc-seat.test";
-interface Calls {
-	readonly ran: string[];
+const entrypoint = "/repo/src/entrypoint.mjs";
+const panelRows = JSON.stringify([
+	{ alert: true, seat: "main", text: "main 5h 0% 7d 100%" },
+	{ alert: false, seat: "dev3", text: "dev3 5h 7% 7d 2%" },
+]);
+interface UiCalls {
+	readonly closed: string[];
+	readonly opened: string[];
+	readonly redraws: string[];
 	readonly statuses: string[];
+	readonly toasts: string[];
+}
+interface Calls extends UiCalls {
+	readonly ran: string[];
+	readonly runs: (readonly string[])[];
 	readonly writes: (readonly [string, string])[];
 }
 
@@ -16,14 +28,78 @@ const resolved = async <Value>(value: Value): Promise<Value> => {
 	return value;
 };
 
+const noElements: Elements = {
+	Box: (): UiNode => ({}),
+	Button: (): UiNode => ({}),
+	Text: (): UiNode => ({}),
+};
+
+const fakeUi = (): Readonly<{ calls: UiCalls; ui: SeatsApi["ui"] }> => {
+	const calls: UiCalls = {
+		closed: [],
+		opened: [],
+		redraws: [],
+		statuses: [],
+		toasts: [],
+	};
+	const ui: SeatsApi["ui"] = {
+		close: async (pane: Readonly<{ id: string }>): Promise<unknown> => {
+			calls.closed.push(pane.id);
+			await resolved(pane);
+			return {};
+		},
+		invalidate: (event: "ui.render"): void => {
+			calls.redraws.push(event);
+		},
+		open: async (
+			pane: Readonly<{ id: string; rows: number }>,
+		): Promise<unknown> => {
+			calls.opened.push(`${pane.id}:${String(pane.rows)}`);
+			await resolved(pane);
+			return {};
+		},
+		resolve: (): Elements => noElements,
+		status: (text?: string): void => {
+			calls.statuses.push(text ?? "cleared");
+		},
+		toast: (text: string): void => {
+			calls.toasts.push(text);
+		},
+	};
+	return { calls, ui };
+};
+
+// Cc answers with the menu rows; the pane reads only this output.
+const fakeProcess = (): Readonly<{
+	process: SeatsApi["process"];
+	runs: (readonly string[])[];
+}> => {
+	const runs: (readonly string[])[] = [];
+	const process: SeatsApi["process"] = {
+		run: async (
+			argv: readonly string[],
+		): Promise<
+			Readonly<{ exitCode: number; stderr: string; stdout: string }>
+		> => {
+			runs.push(argv);
+			await resolved(argv);
+			return { exitCode: 0, stderr: "", stdout: `display\0${panelRows}\0` };
+		},
+	};
+	return { process, runs };
+};
+
 // A session that cc started on dev; it records what the mod asks Claude Code to do.
 const fakeSession = (): Readonly<{ api: SeatsApi; calls: Calls }> => {
 	const env: Readonly<Record<string, string>> = Object.fromEntries([
 		["CLAUDE_SEATS_CURRENT", "dev"],
+		["CLAUDE_SEATS_ENTRYPOINT", entrypoint],
 		["CLAUDE_SEATS_HANDOFF_FILE", handoffFile],
 		["CLAUDE_SEATS_NAMES", "main dev dev2 dev3"],
 	]);
-	const calls: Calls = { ran: [], statuses: [], writes: [] };
+	const { calls: uiCalls, ui } = fakeUi();
+	const { process, runs } = fakeProcess();
+	const calls: Calls = { ...uiCalls, ran: [], runs, writes: [] };
 	const api: SeatsApi = {
 		clock: {
 			after: (_delayMs: number, run: () => Promise<unknown>): unknown => run(),
@@ -46,12 +122,9 @@ const fakeSession = (): Readonly<{ api: SeatsApi; calls: Calls }> => {
 				await resolved(file);
 			},
 		},
+		process,
 		session: { id: async (): Promise<string> => resolved(sessionId) },
-		ui: {
-			status: (text?: string): void => {
-				calls.statuses.push(text ?? "cleared");
-			},
-		},
+		ui,
 	};
 	return { api, calls };
 };
@@ -93,7 +166,32 @@ await test("the status line warns at 90 % of a window and clears below it", asyn
 	]);
 	await showLimits(api, [{ kind: "five_hour", percentUsed: 12 }]);
 	deepStrictEqual(calls.statuses, [
-		"dev 5h 94 % · /seat moves this session to another seat",
+		"dev 5h 94 % · /seats moves this session to another seat",
 		"cleared",
 	]);
+});
+
+await test("/seats opens a focused pane sized to the seats and reads cc panel", async (): Promise<void> => {
+	const { api, calls } = fakeSession();
+	const result = await openSeats(api);
+	deepStrictEqual(result, {});
+	deepStrictEqual(calls.opened, ["seats:6"]);
+	deepStrictEqual(calls.runs, [["node", entrypoint, "panel"]]);
+	deepStrictEqual(calls.redraws, ["ui.render"]);
+});
+
+await test("a picked row hands the session off, closes the pane and says where it goes", async (): Promise<void> => {
+	const { api, calls } = fakeSession();
+	await pick(api, "dev3");
+	deepStrictEqual(calls.writes, [[handoffFile, `dev3\n${sessionId}\n`]]);
+	deepStrictEqual(calls.closed, ["seats"]);
+	deepStrictEqual(calls.toasts, ["Moving this session to dev3…"]);
+	deepStrictEqual(calls.ran, ["exit"]);
+});
+
+await test("picking this session's own seat keeps the pane open and Claude running", async (): Promise<void> => {
+	const { api, calls } = fakeSession();
+	await pick(api, "dev");
+	deepStrictEqual(calls.toasts, ["This session already uses dev."]);
+	deepStrictEqual([calls.writes, calls.closed, calls.ran], [[], [], []]);
 });
