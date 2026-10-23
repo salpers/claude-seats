@@ -228,13 +228,17 @@ launch only. Any other content ends `cc` with Claude's exit status. The mod also
 handles `session.measure`: when a 5h or 7d window reaches 90 %, it pins a status line
 under the prompt, and clears it when no window is at 90 %.
 
-`/seats` opens a pane with one button per seat and redraws it when
-`node $CLAUDE_SEATS_ENTRYPOINT panel` answers. `cc panel` prints `display`, a NUL,
+`/seats` draws one button per seat in the band above the prompt and redraws it when
+`node $CLAUDE_SEATS_ENTRYPOINT panel` answers. The band stays at the bottom in every
+layout, where a pane docks beside a fullscreen transcript from 110 columns. `cc panel` prints `display`, a NUL,
 and a JSON array of `{seat, text, alert}`: `text` is the padded menu bar row and
 `alert` is true where the menu bar colours the row red. The first nine buttons get
-the hotkeys `1`–`9`. A pressed button goes through the same checks and hand-off
-file as `/seat <seat>`; a refused seat shows a toast and leaves the pane open. A
-failed `cc panel` shows its first stderr line in the pane.
+the hotkeys `1`–`9`, which a bare digit in the empty prompt presses; `0` closes. A
+pressed button goes through the same checks and hand-off file as `/seat <seat>`; a
+refused seat shows a toast and leaves the picker up. While the picker shows, a digit
+typed first into the empty prompt presses its button, so a submitted prompt hides
+the picker. A failed
+`cc panel` shows its first stderr line in the picker. The band yields to a survey.
 
 Cross-seat discovery depends on the existing shared session store: the four seats'
 `projects/` directories must point into `<seat-home>/.claude-shared/projects/`.

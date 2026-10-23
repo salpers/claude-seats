@@ -1,7 +1,7 @@
 // Cc loads this mod through CLAUDE_CODE_PLUGIN_DIRS and sets the CLAUDE_SEATS_* variables for each launch.
-import type { On, RateLimit, SeatsApi } from "./api.ts";
-import type { View } from "./pane.ts";
-import { panelView, paneTree } from "./pane.ts";
+import type { BandEvent, On, RateLimit, SeatsApi } from "./api.ts";
+import type { View } from "./picker.ts";
+import { panelView, pickerTree } from "./picker.ts";
 
 interface Seats {
 	readonly current: string;
@@ -16,15 +16,13 @@ interface Move {
 const warnAt = 90;
 const now = 0;
 const nothing = 0;
-// The seat rows plus a blank line and the key hint.
-const paneChrome = 2;
-const paneId = "seats";
 const labels: ReadonlyMap<string, string> = new Map([
 	["five_hour", "5h"],
 	["seven_day", "7d"],
 ]);
-// What the /seats pane shows; each /seats run reloads it.
+// What /seats shows above the prompt; each /seats run reloads it.
 let view: View = { kind: "loading" };
+let shown = false;
 
 // The mod validator lists every variable a mod reads, so each name stays a literal.
 const seatEnvironment = async ($: SeatsApi): Promise<Seats> => {
@@ -83,11 +81,16 @@ const handOff = async (
 	return { text };
 };
 
-// A pressed row moves the session like /seat; a refused row leaves the pane open.
+const hide = ($: SeatsApi): void => {
+	shown = false;
+	$.ui.invalidate("ui.render");
+};
+
+// A pressed row moves the session like /seat; a refused row leaves the picker up.
 const pick = async ($: SeatsApi, seat: string): Promise<void> => {
 	const result = await move($, seat);
 	if (result.moved) {
-		await $.ui.close({ id: paneId });
+		hide($);
 	}
 	$.ui.toast(result.text);
 };
@@ -110,13 +113,8 @@ const readPanel = async ($: SeatsApi, current: string): Promise<View> => {
 const openSeats = async ($: SeatsApi): Promise<Readonly<{ text?: string }>> => {
 	const seats = await seatEnvironment($);
 	view = { kind: "loading" };
-	await $.ui.open({
-		closeOnEscape: true,
-		focus: true,
-		id: paneId,
-		rows: seats.names.length + paneChrome,
-		title: "Seats",
-	});
+	shown = true;
+	$.ui.invalidate("ui.render");
 	view = await readPanel($, seats.current);
 	$.ui.invalidate("ui.render");
 	return {};
@@ -140,6 +138,35 @@ const showLimits = async (
 	$.ui.status(
 		`${current} ${high.join(" · ")} · /seats moves this session to another seat`,
 	);
+};
+
+// A pane docks beside a wide fullscreen transcript; the band above the prompt stays at the bottom.
+const drawBand = (
+	$: SeatsApi,
+	event: BandEvent,
+	next: (event: BandEvent) => Promise<unknown>,
+): unknown => {
+	if (!shown || event.props.hasSurvey) {
+		return next(event);
+	}
+	return pickerTree($.ui.resolve(event), view, {
+		close: () => {
+			hide($);
+		},
+		pick: async (seat: string): Promise<void> => pick($, seat),
+	});
+};
+
+// The picker's digits would catch the start of the next prompt, so a prompt hides it.
+const hideOnPrompt = (
+	$: SeatsApi,
+	event: unknown,
+	next: (event: unknown) => Promise<unknown>,
+): unknown => {
+	if (shown) {
+		hide($);
+	}
+	return next(event);
 };
 
 const startedByCc = async ($: SeatsApi): Promise<boolean> =>
@@ -169,10 +196,10 @@ const register = (on: On): void => {
 		handOff($, event.args),
 	);
 	on("command.run", { command: "seats" }, async ($) => openSeats($));
-	// The matcher limits this hook to the /seats pane; other panes never reach it.
-	on("ui.render", { component: "Pane", requestId: paneId }, ($, event) =>
-		paneTree($.ui.resolve(event), view, async (seat) => pick($, seat)),
+	on("ui.render", { component: "AbovePrompt" }, ($, event, next) =>
+		drawBand($, event, next),
 	);
+	on("prompt.submit", ($, event, next) => hideOnPrompt($, event, next));
 	on("session.measure", async ($, event, next) => {
 		if (event.changed.includes("rateLimits") && (await startedByCc($))) {
 			await showLimits($, event.rateLimits);
@@ -181,4 +208,12 @@ const register = (on: On): void => {
 	});
 };
 
-export { handOff, openSeats, pick, register, showLimits };
+export {
+	drawBand,
+	handOff,
+	hideOnPrompt,
+	openSeats,
+	pick,
+	register,
+	showLimits,
+};

@@ -37,7 +37,7 @@ Read `docs/DESIGN.md` first; it is the authoritative spec.
 - `mod/` is a Claude Code mod with no Node APIs at runtime. The mods validator requires
   the API parameter to be spelled `$`, `$` to reach only top-level functions in the same
   file, and every `$.env.get` name to be a literal; keep `claude plugin validate ./mod`
-  passing. Pure UI logic lives in `mod/hooks/pane.ts`, which takes the resolved elements
+  passing. Pure UI logic lives in `mod/hooks/picker.ts`, which takes the resolved elements
   instead of `$`.
 
 ## Testability seams (required — the e2e suite depends on them)

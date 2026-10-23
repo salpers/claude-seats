@@ -7,7 +7,7 @@ interface ButtonProps {
 	readonly hotkey?: string;
 	readonly key: string;
 	readonly label: string;
-	readonly onPress: () => Promise<void>;
+	readonly onPress: () => unknown;
 	readonly plain: true;
 }
 // Claude Code names its element factories like components.
@@ -20,7 +20,9 @@ interface Elements {
 		props: Readonly<{ children: readonly string[]; dimColor?: boolean }>,
 	) => UiNode;
 }
-interface PaneEvent {
+// The band directly above the prompt; a survey there takes precedence.
+interface BandEvent {
+	readonly props: Readonly<{ hasSurvey: boolean }>;
 	readonly requestId: string;
 }
 interface SeatsApi {
@@ -56,18 +58,8 @@ interface SeatsApi {
 		readonly turns: () => Promise<number>;
 	};
 	readonly ui: {
-		readonly close: (pane: Readonly<{ id: string }>) => Promise<unknown>;
 		readonly invalidate: (event: "ui.render") => void;
-		readonly open: (
-			pane: Readonly<{
-				closeOnEscape: true;
-				focus: true;
-				id: string;
-				rows: number;
-				title: string;
-			}>,
-		) => Promise<unknown>;
-		readonly resolve: (event: PaneEvent) => Elements;
+		readonly resolve: (event: BandEvent) => Elements;
 		// No text removes this mod's status line.
 		readonly status: (text?: string) => void;
 		readonly toast: (text: string) => void;
@@ -82,14 +74,11 @@ interface Measure {
 	readonly rateLimits: readonly RateLimit[];
 }
 type Next<Event> = (event: Event) => Promise<unknown>;
+// Claude Code awaits what a hook returns, so a hook may answer with or without a promise.
 interface On {
 	(
-		name: "session.start",
-		hook: (
-			$: SeatsApi,
-			event: unknown,
-			next: Next<unknown>,
-		) => Promise<unknown>,
+		name: "prompt.submit" | "session.start",
+		hook: ($: SeatsApi, event: unknown, next: Next<unknown>) => unknown,
 	): void;
 	(
 		name: "command.run",
@@ -101,26 +90,21 @@ interface On {
 	): void;
 	(
 		name: "session.measure",
-		hook: (
-			$: SeatsApi,
-			event: Measure,
-			next: Next<Measure>,
-		) => Promise<unknown>,
+		hook: ($: SeatsApi, event: Measure, next: Next<Measure>) => unknown,
 	): void;
 	(
 		name: "ui.render",
-		matcher: Readonly<{ component: "Pane"; requestId: string }>,
-		// Claude Code awaits each hook, so a drawing can come back without a promise.
-		hook: ($: SeatsApi, event: PaneEvent) => UiNode,
+		matcher: Readonly<{ component: "AbovePrompt" }>,
+		hook: ($: SeatsApi, event: BandEvent, next: Next<BandEvent>) => unknown,
 	): void;
 }
 
 export type {
+	BandEvent,
 	ButtonProps,
 	Elements,
 	Measure,
 	On,
-	PaneEvent,
 	RateLimit,
 	SeatsApi,
 	UiNode,
