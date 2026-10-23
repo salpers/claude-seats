@@ -4,6 +4,8 @@ import type { Elements, SeatsApi, UiNode } from "./api.ts";
 import { handOff, openSeats, pick, showLimits } from "./register.ts";
 
 const sessionId = "11111111-2222-4333-8444-555555555555";
+const prompted = 1;
+const unprompted = 0;
 const handoffFile = "/tmp/cc-seat.test";
 const entrypoint = "/repo/src/entrypoint.mjs";
 const panelRows = JSON.stringify([
@@ -90,7 +92,9 @@ const fakeProcess = (): Readonly<{
 };
 
 // A session that cc started on dev; it records what the mod asks Claude Code to do.
-const fakeSession = (): Readonly<{ api: SeatsApi; calls: Calls }> => {
+const fakeSession = (
+	turns = prompted,
+): Readonly<{ api: SeatsApi; calls: Calls }> => {
 	const env: Readonly<Record<string, string>> = Object.fromEntries([
 		["CLAUDE_SEATS_CURRENT", "dev"],
 		["CLAUDE_SEATS_ENTRYPOINT", entrypoint],
@@ -123,7 +127,10 @@ const fakeSession = (): Readonly<{ api: SeatsApi; calls: Calls }> => {
 			},
 		},
 		process,
-		session: { id: async (): Promise<string> => resolved(sessionId) },
+		session: {
+			id: async (): Promise<string> => resolved(sessionId),
+			turns: async (): Promise<number> => resolved(turns),
+		},
 		ui,
 	};
 	return { api, calls };
@@ -142,6 +149,13 @@ await test("/seat without a name asks cc for the best other seat", async (): Pro
 	const result = await handOff(api, "");
 	strictEqual(result.text, "Moving this session to the best other seat…");
 	deepStrictEqual(calls.writes, [[handoffFile, `\n${sessionId}\n`]]);
+	deepStrictEqual(calls.ran, ["exit"]);
+});
+
+await test("/seat before the first prompt asks cc for a new session on the target seat", async (): Promise<void> => {
+	const { api, calls } = fakeSession(unprompted);
+	await handOff(api, "dev3");
+	deepStrictEqual(calls.writes, [[handoffFile, "dev3\nnew\n"]]);
 	deepStrictEqual(calls.ran, ["exit"]);
 });
 

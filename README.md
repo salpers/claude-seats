@@ -192,6 +192,7 @@ To open the pane with a key, add this binding to the `Chat` context in `~/.claud
 ```
 
 - When the 5h or 7d window reaches 90 %, a line under the prompt shows the usage and points to `/seats`.
+- Before the first prompt, a session has nothing to resume. Then `cc` starts a new session on the new seat.
 - The new seat has no prompt cache for the session. The first turn reads the full context again and counts against the new seat.
 - `/seat` and `/seats` need Claude Code 2.1.287 or newer. For each launch, `cc` loads the `seat-handoff` mod from [`mod/`](mod/).
 

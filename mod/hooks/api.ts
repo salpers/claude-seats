@@ -51,7 +51,10 @@ interface SeatsApi {
 			Readonly<{ exitCode: number; stderr: string; stdout: string }>
 		>;
 	};
-	readonly session: { readonly id: () => Promise<string> };
+	readonly session: {
+		readonly id: () => Promise<string>;
+		readonly turns: () => Promise<number>;
+	};
 	readonly ui: {
 		readonly close: (pane: Readonly<{ id: string }>) => Promise<unknown>;
 		readonly invalidate: (event: "ui.render") => void;

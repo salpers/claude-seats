@@ -52,11 +52,14 @@ cc() {
       local -a target
       [[ -s "$handoff" ]] && target=("${(@f)$(<"$handoff")}")
       command rm -f -- "$handoff"
-      if (( ${#target} == 2 )) && [[ "${target[2]}" =~ '^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$' ]]; then
+      if (( ${#target} == 2 )) && [[ "${target[2]}" == new || "${target[2]}" =~ '^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$' ]]; then
+        # "new": the session had no prompt, so it has no transcript to resume.
+        local -a resume=(-r "${target[2]}")
+        [[ "${target[2]}" == new ]] && resume=()
         if [[ -n "${target[1]}" ]]; then
-          cc "@${target[1]}" -r "${target[2]}"
+          cc "@${target[1]}" "${resume[@]}"
         else
-          CLAUDE_SEATS_AVOID="${fields[6]}" cc -r "${target[2]}"
+          CLAUDE_SEATS_AVOID="${fields[6]}" cc "${resume[@]}"
         fi
         return $?
       fi

@@ -53,14 +53,22 @@ const movingText = (seat: string): string => {
 	return `Moving this session to ${seat}…`;
 };
 
-// Cc reads the file after Claude quits and resumes the session on the target seat.
+// Claude Code writes the transcript at the first prompt, so before it there is nothing to resume.
+const resumable = async ($: SeatsApi): Promise<string> => {
+	if ((await $.session.turns()) === nothing) {
+		return "new";
+	}
+	return $.session.id();
+};
+
+// Cc reads the file after Claude quits and resumes the session on the target seat, or starts a new one there.
 const move = async ($: SeatsApi, seat: string): Promise<Move> => {
 	const seats = await seatEnvironment($);
 	const refused = refusal(seat, seats);
 	if (refused !== "") {
 		return { moved: false, text: refused };
 	}
-	const session = await $.session.id();
+	const session = await resumable($);
 	await $.fs.write(seats.file, `${seat}\n${session}\n`);
 	// Exit runs after this command, when the session is idle.
 	$.clock.after(now, async () => $.command.run({ command: "exit" }));

@@ -11,13 +11,15 @@ const executableMode = 0o700;
 const sessionId = "11111111-2222-4333-8444-555555555555";
 const root = path.dirname(import.meta.dirname);
 
-// Logs each launch; a fresh session acts like /seat: it writes the hand-off file and quits.
+// Logs each launch; the first launch acts like /seat: it writes the hand-off file and quits.
 // It also clears the launch claims, as a session that ran past the claim lifetime does.
 const fakeMovingClaude = `#!/bin/zsh -f
 exec node --input-type=module -e '
+import { existsSync } from "node:fs";
 import { appendFile, writeFile } from "node:fs/promises";
 const args = process.argv.slice(1);
 const env = process.env;
+const first = !existsSync(env.CLAUDE_SEATS_TEST_LOG);
 await appendFile(env.CLAUDE_SEATS_TEST_LOG, JSON.stringify({
   args,
   avoid: env.CLAUDE_SEATS_AVOID ?? "",
@@ -27,9 +29,9 @@ await appendFile(env.CLAUDE_SEATS_TEST_LOG, JSON.stringify({
   names: env.CLAUDE_SEATS_NAMES,
   plugins: env.CLAUDE_CODE_PLUGIN_DIRS,
 }) + "\\n");
-if (args[0] !== "--resume") {
+if (first) {
   await writeFile(env.CLAUDE_SEATS_STATE_DIR + "/claims.json", "[]\\n");
-  await writeFile(env.CLAUDE_SEATS_HANDOFF_FILE, env.CLAUDE_SEATS_TEST_MOVE + "\\n${sessionId}\\n");
+  await writeFile(env.CLAUDE_SEATS_HANDOFF_FILE, env.CLAUDE_SEATS_TEST_MOVE + "\\n");
 }
 ' -- "$@"
 `;
@@ -107,7 +109,7 @@ const assertDevToDev3 = async (
 
 await test("/seat dev3 quits Claude on dev, and cc resumes the session on dev3 with the mod loaded", async (context: Context): Promise<void> => {
 	const setup = await fixture(context);
-	const moved = await moveFrom(setup, ["@dev"], "dev3");
+	const moved = await moveFrom(setup, ["@dev"], `dev3\n${sessionId}`);
 	strictEqual(moved.status, success, moved.stderr);
 	strictEqual(moved.stderr, "cc: using dev\ncc: using dev3\nreturned:0\n");
 	await assertDevToDev3(setup, moved.launches);
@@ -122,7 +124,7 @@ await test("/seat without a name resumes on the best seat other than the current
 		dev3: { fiveHour: 10, sevenDay: 70 },
 		main: { fiveHour: 10, sevenDay: 50 },
 	});
-	const moved = await moveFrom(setup, ["@dev"], "");
+	const moved = await moveFrom(setup, ["@dev"], `\n${sessionId}`);
 	strictEqual(moved.status, success, moved.stderr);
 	strictEqual(moved.stderr, "cc: using dev\ncc: using main\nreturned:0\n");
 	const [, second] = moved.launches;
@@ -130,5 +132,17 @@ await test("/seat without a name resumes on the best seat other than the current
 	deepStrictEqual(
 		[second.config, second.args, second.avoid],
 		["", ["--resume", sessionId], ""],
+	);
+});
+
+await test("/seat before the first prompt starts a new session on the target seat", async (context: Context): Promise<void> => {
+	const setup = await fixture(context);
+	const moved = await moveFrom(setup, ["@dev"], "dev3\nnew");
+	strictEqual(moved.status, success, moved.stderr);
+	const [, second] = moved.launches;
+	ok(second);
+	deepStrictEqual(
+		[second.config, second.args, second.current],
+		[path.join(setup.home, ".claude-dev3"), [], "dev3"],
 	);
 });
