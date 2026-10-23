@@ -1,18 +1,7 @@
-import {
-	deepStrictEqual,
-	notStrictEqual,
-	strictEqual,
-} from "node:assert/strict";
+import { deepStrictEqual, strictEqual } from "node:assert/strict";
 import { test } from "node:test";
 import type { Elements, SeatsApi, UiNode } from "./api.ts";
-import {
-	drawBand,
-	handOff,
-	hideOnPrompt,
-	openSeats,
-	pick,
-	showLimits,
-} from "./register.ts";
+import { handOff, openSeats, pick, showLimits } from "./register.ts";
 
 const sessionId = "11111111-2222-4333-8444-555555555555";
 const prompted = 1;
@@ -24,6 +13,8 @@ const panelRows = JSON.stringify([
 	{ alert: false, seat: "dev3", text: "dev3 5h 7% 7d 2%" },
 ]);
 interface UiCalls {
+	readonly closed: string[];
+	readonly opened: string[];
 	readonly redraws: string[];
 	readonly statuses: string[];
 	readonly toasts: string[];
@@ -38,8 +29,6 @@ const resolved = async <Value>(value: Value): Promise<Value> => {
 	await Promise.resolve();
 	return value;
 };
-// What the next hook returns when the band hook passes the band on.
-const passed = Object.freeze({ passed: true });
 
 const noElements: Elements = {
 	Box: (): UiNode => ({}),
@@ -49,13 +38,27 @@ const noElements: Elements = {
 
 const fakeUi = (): Readonly<{ calls: UiCalls; ui: SeatsApi["ui"] }> => {
 	const calls: UiCalls = {
+		closed: [],
+		opened: [],
 		redraws: [],
 		statuses: [],
 		toasts: [],
 	};
 	const ui: SeatsApi["ui"] = {
+		close: async (pane: Readonly<{ id: string }>): Promise<unknown> => {
+			calls.closed.push(pane.id);
+			await resolved(pane);
+			return {};
+		},
 		invalidate: (event: "ui.render"): void => {
 			calls.redraws.push(event);
+		},
+		open: async (
+			pane: Readonly<{ id: string; rows: number }>,
+		): Promise<unknown> => {
+			calls.opened.push(`${pane.id}:${String(pane.rows)}`);
+			await resolved(pane);
+			return {};
 		},
 		resolve: (): Elements => noElements,
 		status: (text?: string): void => {
@@ -68,7 +71,7 @@ const fakeUi = (): Readonly<{ calls: UiCalls; ui: SeatsApi["ui"] }> => {
 	return { calls, ui };
 };
 
-// Cc answers with the menu rows; the picker reads only this output.
+// Cc answers with the menu rows; the pane reads only this output.
 const fakeProcess = (): Readonly<{
 	process: SeatsApi["process"];
 	runs: (readonly string[])[];
@@ -182,56 +185,27 @@ await test("the status line warns at 90 % of a window and clears below it", asyn
 	]);
 });
 
-// The band above the prompt as Claude Code raises it; true means a survey holds it.
-const band = async (api: SeatsApi, hasSurvey = false): Promise<unknown> =>
-	resolved(
-		drawBand(
-			api,
-			{ props: { hasSurvey }, requestId: "above-prompt" },
-			async (): Promise<unknown> => resolved(passed),
-		),
-	);
-
-await test("/seats shows the picker above the prompt, after cc panel answers, unless a survey holds the band", async (): Promise<void> => {
+await test("/seats opens a focused pane sized to the seats and reads cc panel", async (): Promise<void> => {
 	const { api, calls } = fakeSession();
-	strictEqual(await band(api), passed);
-	deepStrictEqual(await openSeats(api), {});
+	const result = await openSeats(api);
+	deepStrictEqual(result, {});
+	deepStrictEqual(calls.opened, ["seats:6"]);
 	deepStrictEqual(calls.runs, [["node", entrypoint, "panel"]]);
-	deepStrictEqual(calls.redraws, ["ui.render", "ui.render"]);
-	notStrictEqual(await band(api), passed);
-	strictEqual(await band(api, true), passed);
+	deepStrictEqual(calls.redraws, ["ui.render"]);
 });
 
-await test("a picked row hands the session off, hides the picker and says where it goes", async (): Promise<void> => {
+await test("a picked row hands the session off, closes the pane and says where it goes", async (): Promise<void> => {
 	const { api, calls } = fakeSession();
-	await openSeats(api);
 	await pick(api, "dev3");
 	deepStrictEqual(calls.writes, [[handoffFile, `dev3\n${sessionId}\n`]]);
+	deepStrictEqual(calls.closed, ["seats"]);
 	deepStrictEqual(calls.toasts, ["Moving this session to dev3…"]);
 	deepStrictEqual(calls.ran, ["exit"]);
-	strictEqual(await band(api), passed);
 });
 
-await test("picking this session's own seat keeps the picker up and Claude running", async (): Promise<void> => {
+await test("picking this session's own seat keeps the pane open and Claude running", async (): Promise<void> => {
 	const { api, calls } = fakeSession();
-	await openSeats(api);
 	await pick(api, "dev");
 	deepStrictEqual(calls.toasts, ["This session already uses dev."]);
-	deepStrictEqual([calls.writes, calls.ran], [[], []]);
-	notStrictEqual(await band(api), passed);
-});
-
-await test("the next prompt hides the picker and goes through", async (): Promise<void> => {
-	const { api } = fakeSession();
-	await openSeats(api);
-	const prompt = { text: "2 things" };
-	deepStrictEqual(
-		await hideOnPrompt(
-			api,
-			prompt,
-			async (event: unknown): Promise<unknown> => resolved(event),
-		),
-		prompt,
-	);
-	strictEqual(await band(api), passed);
+	deepStrictEqual([calls.writes, calls.closed, calls.ran], [[], [], []]);
 });

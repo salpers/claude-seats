@@ -73,58 +73,38 @@ const marker = (row: PanelRow, current: string): string => {
 };
 
 const hint = (count: number): string =>
-	`1–${String(Math.min(count, lastHotkey))} or click: move this session · ctrl+x tab: ↑↓ Enter`;
+	`1–${String(Math.min(count, lastHotkey))} or click: move this session · ↑↓ Enter · Esc: close`;
 
-const body = (
+// One button per seat: rows the menu bar colours red are dim; ● marks this session's seat.
+const paneTree = (
 	ui: Elements,
 	view: View,
 	pick: (seat: string) => Promise<void>,
-): readonly UiNode[] => {
+): UiNode => {
 	if (view.kind === "loading") {
-		return [ui.Text({ children: ["Reading seat usage…"], dimColor: true })];
+		return ui.Text({ children: ["Reading seat usage…"], dimColor: true });
 	}
 	if (view.kind === "error") {
-		return [ui.Text({ children: [view.reason] })];
+		return ui.Text({ children: [view.reason] });
 	}
-	return [
-		...view.rows.map((row, index) =>
-			ui.Button({
-				dimColor: row.alert,
-				key: `seat-${row.seat}`,
-				label: `${marker(row, view.current)} ${row.text}`,
-				onPress: async () => pick(row.seat),
-				plain: true,
-				...hotkeyFor(index),
-			}),
-		),
-		ui.Text({ children: [hint(view.rows.length)], dimColor: true }),
-	];
-};
-
-// One button per seat: rows the menu bar colours red are dim; ● marks this session's seat.
-// The picker sits in the band above the prompt, where a bare digit in an empty prompt presses a button.
-const pickerTree = (
-	ui: Elements,
-	view: View,
-	actions: Readonly<{
-		close: () => unknown;
-		pick: (seat: string) => Promise<void>;
-	}>,
-): UiNode =>
-	ui.Box({
+	return ui.Box({
 		children: [
-			...body(ui, view, actions.pick),
-			ui.Button({
-				dimColor: true,
-				hotkey: "0",
-				key: "close",
-				label: "close",
-				onPress: actions.close,
-				plain: true,
-			}),
+			...view.rows.map((row, index) =>
+				ui.Button({
+					dimColor: row.alert,
+					key: `seat-${row.seat}`,
+					label: `${marker(row, view.current)} ${row.text}`,
+					onPress: async () => pick(row.seat),
+					plain: true,
+					...hotkeyFor(index),
+				}),
+			),
+			ui.Text({ children: [" "] }),
+			ui.Text({ children: [hint(view.rows.length)], dimColor: true }),
 		],
 		flexDirection: "column",
 	});
+};
 
 export type { View };
-export { panelView, pickerTree };
+export { panelView, paneTree };

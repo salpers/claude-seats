@@ -22,7 +22,7 @@ When a seat is at its limit, `cc -r` moves your session to a different seat.
 |---|---|---|
 | 🧭 | **Auto-routing** | Starts each session on the seat with the lowest usage. |
 | ⚖️ | **Load spread** | Puts concurrent sessions on different seats. |
-| 🔁 | **Hand-off** | Moves a session to a different seat with `/seat` or the `/seats` picker in Claude, or with `cc -r`. |
+| 🔁 | **Hand-off** | Moves a session to a different seat with `/seat` or the `/seats` pane in Claude, or with `cc -r`. |
 | ⚠️ | **Limit warning** | Shows a line in Claude when a usage window reaches 90 %. |
 | 🛟 | **Fallback** | Uses cached usage or a small probe when the usage endpoint fails. |
 | 📊 | **Statusline** | Shows the seat and its 5h / 7d usage in Claude Code. |
@@ -113,7 +113,7 @@ Put the seat names in `~/.claude-shared/seats.json`, in registry order:
 | `cc migrate` | Show how existing seat data moves to the shared store. Change nothing. |
 | `cc migrate --apply` | Move existing seat data to the shared store, then install. |
 | `cc menu` | Print the seat table in SwiftBar format. |
-| `cc panel` | Print the seat rows as JSON for the `/seats` picker. |
+| `cc panel` | Print the seat rows as JSON for the `/seats` pane. |
 | `/seat <seat>` (in Claude) | Move this session to this seat. |
 | `/seat` (in Claude) | Move this session to the best other seat. |
 | `/seats` (in Claude) | Show the usage of all seats. Select a row to move this session. |
@@ -179,14 +179,13 @@ In a Claude session that `cc` started, type `/seat dev3`, or `/seat` for the bes
 
 All seats share the session store, so each seat can find the session.
 
-To select from the usage table, type `/seats`. A picker above the prompt shows the menu bar rows: ● marks the seat of this session, and dim rows are the seats that the menu bar shows in red.
+To select from the usage table, type `/seats`. A pane shows the menu bar rows: ● marks the seat of this session, and dim rows are the seats that the menu bar shows in red.
 
-- In the empty prompt, press `1`–`9`. The current seat shows a message and the picker stays.
+- Press `1`–`9`, or move with ↑ ↓ and press Enter. The current seat stays open with a message.
 - Click a row when Claude Code uses fullscreen rendering.
-- Press ctrl+x tab, then move with ↑ ↓ and press Enter.
-- Press `0`, or send a prompt, to close the picker.
+- Press Esc to close the pane.
 
-To open the picker with a key, add this binding to the `Chat` context in `~/.claude/keybindings.json`:
+To open the pane with a key, add this binding to the `Chat` context in `~/.claude/keybindings.json`:
 
 ```json
 "meta+s": "command:seats"
