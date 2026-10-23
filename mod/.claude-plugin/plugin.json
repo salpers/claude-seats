@@ -1,0 +1,8 @@
+{
+	"name": "seat-handoff",
+	"version": "0.1.0",
+	"description": "/seat moves the session to another seat; a status line warns near a usage limit.",
+	"author": { "name": "Sebastian Alpers" },
+	"repository": "https://github.com/salpers/claude-seats",
+	"license": "MIT"
+}

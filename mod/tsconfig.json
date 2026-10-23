@@ -1,0 +1,4 @@
+{
+	// Claude Code adds a tsconfig for its generated types when this file is missing; the repo config keeps one rule set.
+	"extends": "../tsconfig.json"
+}

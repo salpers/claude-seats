@@ -30,6 +30,9 @@ cc() {
         set -- --resume "$@"
       fi
       print -r -- "cc: using ${fields[6]}" >&2
+      # /seat in Claude writes "<seat>\n<session id>" here, then quits; an empty seat means the best other seat.
+      local handoff
+      handoff=$(command mktemp "${TMPDIR:-/tmp}/cc-seat.XXXXXX") || return 1
       # A subshell keeps the caller's shell alive, so Claude's farewell survives
       # the session, and confines the seat environment to the launch.
       (
@@ -40,8 +43,24 @@ cc() {
         else
           export CLAUDE_CONFIG_DIR="${fields[2]}"
         fi
+        unset CLAUDE_SEATS_AVOID
+        export CLAUDE_SEATS_HANDOFF_FILE="$handoff" CLAUDE_SEATS_CURRENT="${fields[6]}" CLAUDE_SEATS_NAMES="${fields[7]}"
+        export CLAUDE_CODE_PLUGIN_DIRS="${_CLAUDE_SEATS_ENTRYPOINT:h:h}/mod${CLAUDE_CODE_PLUGIN_DIRS:+:$CLAUDE_CODE_PLUGIN_DIRS}"
         exec -- "${fields[3]}" "$@"
       )
+      local -i result=$?
+      local -a target
+      [[ -s "$handoff" ]] && target=("${(@f)$(<"$handoff")}")
+      command rm -f -- "$handoff"
+      if (( ${#target} == 2 )) && [[ "${target[2]}" =~ '^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$' ]]; then
+        if [[ -n "${target[1]}" ]]; then
+          cc "@${target[1]}" -r "${target[2]}"
+        else
+          CLAUDE_SEATS_AVOID="${fields[6]}" cc -r "${target[2]}"
+        fi
+        return $?
+      fi
+      return $result
       ;;
     *)
       print -r -- 'cc: Invalid response from seat selector.' >&2

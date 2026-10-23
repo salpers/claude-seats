@@ -49,6 +49,13 @@
 				// CLI output is centralized here so other modules cannot accidentally log secrets.
 				"no-console": "off"
 			}
+		},
+		{
+			"files": ["mod/**/*.ts"],
+			"rules": {
+				// The mods validator requires the mods API parameter to be spelled $.
+				"id-length": ["error", { "exceptions": ["$"] }]
+			}
 		}
 	]
 }

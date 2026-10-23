@@ -31,6 +31,8 @@ const launch = async (
 		String(consumed),
 		path.dirname(seat.directory),
 		seat.name,
+		// The /seat mod checks a target against these names.
+		seats.map((entry) => entry.name).join(" "),
 	]);
 };
 

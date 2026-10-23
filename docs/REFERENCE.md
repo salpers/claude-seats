@@ -213,6 +213,20 @@ picker. `cc @dev -r` and `cc @dev -r <session-id>` pin the resume to `dev`, even
 when automatic routing would refuse it. Leading `--resume` works the same way.
 Resume uses the same claims, ranking, fallback, and exhaustion checks as new sessions.
 
+`/seat` moves a running session without the picker. For each launch, `bin/cc.zsh`
+creates an empty hand-off file and adds `mod/` to `CLAUDE_CODE_PLUGIN_DIRS`, so
+Claude Code loads the `seat-handoff` mod. It also exports `CLAUDE_SEATS_HANDOFF_FILE`,
+`CLAUDE_SEATS_CURRENT` (the seat) and `CLAUDE_SEATS_NAMES` (the registry, space
+separated). The mod registers `/seat` only when the hand-off file variable is set.
+`/seat <seat>` refuses an unknown seat and the current seat. Otherwise it writes
+`<seat>\n<session-id>\n` (an empty first line for the best other seat) and queues
+`/exit`. When Claude exits, the shell function reads and deletes the file. A valid
+UUID session ID starts `cc @<seat> -r <id>`, or `cc -r <id>` with
+`CLAUDE_SEATS_AVOID=<current seat>`, which removes that seat from routing for this
+launch only. Any other content ends `cc` with Claude's exit status. The mod also
+handles `session.measure`: when a 5h or 7d window reaches 90 %, it pins a status line
+under the prompt, and clears it when no window is at 90 %.
+
 Cross-seat discovery depends on the existing shared session store: the four seats'
 `projects/` directories must point into `<seat-home>/.claude-shared/projects/`.
 The router does not copy transcripts or implement a picker. `cc doctor` verifies

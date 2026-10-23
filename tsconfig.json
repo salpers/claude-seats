@@ -27,5 +27,5 @@
 		"isolatedModules": true,
 		"allowImportingTsExtensions": true
 	},
-	"include": ["src/**/*.ts", "src/**/*.mjs", "tests/**/*.ts"]
+	"include": ["src/**/*.ts", "src/**/*.mjs", "tests/**/*.ts", "mod/**/*.ts"]
 }

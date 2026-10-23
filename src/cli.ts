@@ -32,7 +32,12 @@ const routedSelection = async (
 		const selection = await routeSeats(seats, options, parsed.seat);
 		return selection;
 	}
-	const selection = await routeSeats(seats, options);
+	// /seat without a name moves the session to the best seat other than its own.
+	const avoided = options.env["CLAUDE_SEATS_AVOID"];
+	const selection = await routeSeats(
+		seats.filter((seat) => seat.name !== avoided),
+		options,
+	);
 	return selection;
 };
 

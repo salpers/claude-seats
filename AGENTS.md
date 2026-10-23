@@ -34,6 +34,9 @@ Read `docs/DESIGN.md` first; it is the authoritative spec.
   never be written to disk, logged, printed, or included in error messages. Tests assert
   this where relevant.
 - Comments explain *why*, never narrate *what*. No dead code, no TODOs without an issue.
+- `mod/` is a Claude Code mod with no Node APIs at runtime. The mods validator requires
+  the API parameter to be spelled `$` and every `$.env.get` name to be a literal; keep
+  `claude plugin validate ./mod` passing.
 
 ## Testability seams (required — the e2e suite depends on them)
 Environment overrides, all optional, all documented in `README.md`:

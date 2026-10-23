@@ -22,7 +22,8 @@ When a seat is at its limit, `cc -r` moves your session to a different seat.
 |---|---|---|
 | 🧭 | **Auto-routing** | Starts each session on the seat with the lowest usage. |
 | ⚖️ | **Load spread** | Puts concurrent sessions on different seats. |
-| 🔁 | **Hand-off** | Resumes a session on a different seat with `cc -r`. |
+| 🔁 | **Hand-off** | Moves a session to a different seat with `/seat` in Claude, or with `cc -r`. |
+| ⚠️ | **Limit warning** | Shows a line in Claude when a usage window reaches 90 %. |
 | 🛟 | **Fallback** | Uses cached usage or a small probe when the usage endpoint fails. |
 | 📊 | **Statusline** | Shows the seat and its 5h / 7d usage in Claude Code. |
 | 🖥️ | **Menu bar** | Shows all seats in the macOS menu bar (SwiftBar). |
@@ -112,6 +113,8 @@ Put the seat names in `~/.claude-shared/seats.json`, in registry order:
 | `cc migrate` | Show how existing seat data moves to the shared store. Change nothing. |
 | `cc migrate --apply` | Move existing seat data to the shared store, then install. |
 | `cc menu` | Print the seat table in SwiftBar format. |
+| `/seat <seat>` (in Claude) | Move this session to this seat. |
+| `/seat` (in Claude) | Move this session to the best other seat. |
 
 `cc` writes the selected seat to stderr, for example `cc: using dev2`.
 Thus, you can pipe the Claude output.
@@ -167,13 +170,18 @@ Use this procedure when your seats already have their own sessions, memory or hi
 
 ## Move a session to a different seat
 
-When a seat is at its limit:
+In a Claude session that `cc` started, type `/seat dev3`, or `/seat` for the best other seat.
 
-1. Quit Claude.
-2. Run `cc -r` in the same project directory.
-3. Select the session in the picker.
+1. Claude quits when the current turn ends.
+2. `cc` resumes the same session on the new seat, in the same terminal.
 
 All seats share the session store, so each seat can find the session.
+
+- When the 5h or 7d window reaches 90 %, a line under the prompt shows the usage and points to `/seat`.
+- The new seat has no prompt cache for the session. The first turn reads the full context again and counts against the new seat.
+- `/seat` needs Claude Code 2.1.287 or newer. For each launch, `cc` loads the `seat-handoff` mod from [`mod/`](mod/).
+
+Without `/seat`: quit Claude, run `cc -r` in the same project directory, then select the session in the picker.
 
 ## Statusline
 
@@ -206,6 +214,7 @@ ln -s "$PWD/bin/claude-seats.5m.sh" ~/SwiftBar/claude-seats.5m.sh
 - State goes to `~/.claude-shared/_seats/` (mode `0700`, files `0600`).
 - The state has the usage cache, cooldowns, claims and `decisions.log`.
 - `decisions.log` records each seat selection. It does not record arguments or credentials.
+- The `seat-handoff` mod runs in Claude Code with your permissions. It reads the seat names from its environment. It writes only the hand-off file: a seat name and a session ID.
 - Before each launch, `cc` sets `autoContinueAtUsageLimit: false`. Thus, a session stops at the limit and does not wait.
 
 ## Configuration
@@ -228,6 +237,7 @@ pnpm verify   # tsgo → oxlint → biome → node --test
 ```
 
 - No build step. Node 24 runs the TypeScript directly.
+- `mod/` is the Claude Code mod for `/seat`. `claude plugin validate ./mod` lists what it reads and calls.
 - No runtime dependencies. All packages are development tools.
 - Tests use temporary homes, fake credentials and a fake `claude` binary.
 - Tests do not touch the real keychain, the real seats or Anthropic.
