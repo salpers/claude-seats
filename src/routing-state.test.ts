@@ -61,7 +61,7 @@ await test("claims reject malformed external state and project away unrelated fi
 		"null",
 		"{}",
 		"[null]",
-		'[{"seat":"api","createdAt":100}]',
+		'[{"seat":"../api","createdAt":100}]',
 		'[{"seat":"main","createdAt":-1}]',
 		'[{"seat":"main","createdAt":1.5}]',
 		'[{"seat":"main","createdAt":"1"}]',

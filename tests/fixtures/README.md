@@ -10,7 +10,7 @@ No local account or keychain was accessed to obtain this fixture.
 
 # Limit error fixtures
 
-`limit-errors.txt` contains the 24-hour example from ticket 05, the error reported
+`limit-errors.txt` contains the 24-hour example from the design, the error reported
 in [anthropics/claude-code issue 93974](https://github.com/anthropics/claude-code/issues/93974),
 and the error quoted by the affected developer in their
 [Swift Forums report](https://forums.swift.org/t/fun-project-aro-a-feature-driven-programming-language-built-with-ai/83513).
@@ -18,7 +18,7 @@ Only the limit message is retained. These fixtures require no local account acce
 
 # Statusline fixture
 
-`statusline-before.py` is a synthetic legacy renderer for ticket 08's
+`statusline-before.py` is a synthetic legacy renderer for the original
 `model | cwd | git | context | sess … | wk … | email` layout. It is not a copy
 of the user's original script, which is absent from the checkout. Tests feed it
 arbitrary prefix segments, execute it before and after wrapping, compare the raw

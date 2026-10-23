@@ -5,20 +5,26 @@ import { install } from "./install.ts";
 import { stateDirectory } from "./list-seats.ts";
 import { printError, printReply } from "./output.ts";
 import type { SeatEnvironment } from "./route-seats.ts";
+import { loadSeats } from "./seats.ts";
 
 const unavailable = 1;
 const setupReport = async (
 	command: "doctor" | "install",
 	options: SetupOptions,
 ): Promise<SetupReport> => {
-	if (command === "install") {
-		return install(options);
+	const registry = await loadSeats(options.home);
+	if (!registry.ok) {
+		return { messages: [registry.reason], ok: false };
 	}
-	const report = await doctor(options);
+	const names = registry.seats.map((seat) => seat.name);
+	if (command === "install") {
+		return install({ ...options, names });
+	}
+	const report = await doctor({ ...options, names });
 	if (report.ok) {
 		return {
 			messages: [
-				"Setup is healthy: Node >=24, four seats, shared links, credential presence, private state and statusLine.",
+				`Setup is healthy: Node >=24, seats ${names.join(", ")}, shared links, credential presence, private state and statusLine.`,
 			],
 			ok: true,
 		};

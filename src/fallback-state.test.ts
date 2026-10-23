@@ -38,17 +38,17 @@ const fixture = async (context: Context): Promise<string> => {
 	return directory;
 };
 
-await test("fallback parsing rejects malformed state, invalid seats, duplicate cooldowns and unsafe timestamps", (): void => {
+await test("fallback parsing rejects malformed state, malformed seat names, duplicate cooldowns and unsafe timestamps", (): void => {
 	for (const text of [
 		"{",
 		"null",
 		"[]",
 		"{}",
-		'{"cooldowns":[],"lastSeat":"api"}',
+		'{"cooldowns":[],"lastSeat":"../api"}',
 		...[
 			"null",
 			"{}",
-			'{"seat":"api","until":100}',
+			'{"seat":"../api","until":100}',
 			'{"seat":"main","until":"100"}',
 			'{"seat":"main","until":-1}',
 			'{"seat":"main","until":1.5}',

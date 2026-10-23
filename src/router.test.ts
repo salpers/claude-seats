@@ -72,13 +72,13 @@ await test("weekly usage breaks remaining ties, then registry order", (): void =
 	strictEqual(chooseSeat(healthy, [], { now }).seat, "main");
 });
 
-await test("registry order breaks ties even when routing rows arrive out of order", (): void => {
+await test("rows arrive in registry order, so ties keep the row order of any seat names", (): void => {
 	for (const { rows, expected } of [
-		{ expected: "main", rows: healthy.toReversed() },
-		{ expected: "dev2", rows: [row("dev3"), row("dev2")] },
+		{ expected: "dev3", rows: healthy.toReversed() },
+		{ expected: "dev3", rows: [row("dev3"), row("dev2")] },
 		{
-			expected: "dev",
-			rows: [row("dev3"), row("main", { fiveHour: 100 }), row("dev")],
+			expected: "work",
+			rows: [row("work"), row("main", { fiveHour: 100 }), row("dev")],
 		},
 	]) {
 		const before = structuredClone(rows);
@@ -168,8 +168,8 @@ const partialCases = [
 	{
 		expected: "main",
 		rows: [
-			row("dev", { sevenDay: "unknown" }),
 			row("main", { sevenDay: "unknown" }),
+			row("dev", { sevenDay: "unknown" }),
 		],
 	},
 	{

@@ -104,7 +104,7 @@ await test("corrupt claims refuse automatic and manual launches with an audit an
 		[
 			"NOT JSON",
 			"[null]",
-			'[{"seat":"other","createdAt":0}]',
+			'[{"seat":"Other","createdAt":0}]',
 			'[{"seat":"main","createdAt":"0"}]',
 		].flatMap((text) =>
 			[

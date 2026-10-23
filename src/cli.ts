@@ -5,20 +5,22 @@ import { authEnvironmentProblems } from "./claude-environment.ts";
 import { launch } from "./launch.ts";
 import { listSeats } from "./list-seats.ts";
 import { printError } from "./output.ts";
+import type { ResumeMetadata } from "./resume.ts";
 import { parseResume } from "./resume.ts";
 import type { SeatEnvironment, Selection } from "./route-seats.ts";
 import { routeSeats } from "./route-seats.ts";
-import type { Seat } from "./seats.ts";
-import { createSeats } from "./seats.ts";
+import type { Seat, SeatName, SeatsResult } from "./seats.ts";
+import { loadSeats } from "./seats.ts";
 import { setupCommand } from "./setup-command.ts";
 
 const usageError = 2;
+const unavailable = 1;
 const argumentOffset = 2;
 type Environment = Readonly<Record<string, string | undefined>>;
 
-const fail = (message: string): void => {
+const fail = (message: string, exitCode = usageError): void => {
 	printError(message);
-	process.exitCode = usageError;
+	process.exitCode = exitCode;
 };
 
 const routedSelection = async (
@@ -57,24 +59,54 @@ const selectLaunch = async (
 	});
 };
 
-const select = async (
-	parsed: ParsedArgs,
+const selectSeats = async (
+	parsed: Extract<ParsedArgs, { kind: "auto" | "launch" | "list" | "menu" }>,
 	seats: readonly Seat[],
 	options: SeatEnvironment,
 ): Promise<void> => {
-	if (!parsed.ok) {
-		fail(parsed.reason);
-		return;
-	}
 	if (parsed.kind === "list" || parsed.kind === "menu") {
 		await listSeats(seats, options, parsed.kind);
 		return;
 	}
-	if (parsed.kind === "doctor" || parsed.kind === "install") {
+	await selectLaunch(parsed, seats, options);
+};
+
+const select = async (
+	parsed: ParsedArgs,
+	registry: SeatsResult,
+	options: SeatEnvironment,
+): Promise<void> => {
+	// Doctor and install report an invalid seat config themselves.
+	if (parsed.ok && (parsed.kind === "doctor" || parsed.kind === "install")) {
 		await setupCommand(parsed.kind, options);
 		return;
 	}
-	await selectLaunch(parsed, seats, options);
+	if (!registry.ok) {
+		fail(registry.reason, unavailable);
+		return;
+	}
+	if (!parsed.ok) {
+		fail(parsed.reason);
+		return;
+	}
+	await selectSeats(parsed, registry.seats, options);
+};
+
+const registryNames = (registry: SeatsResult): readonly SeatName[] => {
+	if (registry.ok) {
+		return registry.seats.map((seat) => seat.name);
+	}
+	return [];
+};
+
+const resumeFor = (
+	parsed: ParsedArgs,
+	args: readonly string[],
+): ResumeMetadata => {
+	if (parsed.ok && (parsed.kind === "auto" || parsed.kind === "launch")) {
+		return parseResume(args.slice(parsed.consumed));
+	}
+	return {};
 };
 
 const run = async (env: Environment): Promise<void> => {
@@ -84,12 +116,13 @@ const run = async (env: Environment): Promise<void> => {
 		return;
 	}
 	const args = process.argv.slice(argumentOffset);
-	const parsed = parseArgs(args);
-	let resume = {};
-	if (parsed.ok && (parsed.kind === "auto" || parsed.kind === "launch")) {
-		resume = parseResume(args.slice(parsed.consumed));
-	}
-	await select(parsed, createSeats(home), { env, home, resume });
+	const registry = await loadSeats(home);
+	const parsed = parseArgs(args, registryNames(registry));
+	await select(parsed, registry, {
+		env,
+		home,
+		resume: resumeFor(parsed, args),
+	});
 };
 
 const environment: Environment = process.env;

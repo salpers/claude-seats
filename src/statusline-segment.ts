@@ -49,7 +49,7 @@ const cacheDirectory = (env: Environment): string | false => {
 
 const fillMissingWindows = async (
 	live: Usage,
-	seat: SeatName | "unknown",
+	seat: SeatName,
 	{ env, readCache }: Readonly<{ env: Environment; readCache: CacheReader }>,
 ): Promise<Usage> => {
 	const directory = cacheDirectory(env);

@@ -12,7 +12,12 @@ const presentParts = 4;
 const mainRow = 1;
 const noMatch = -1;
 const bareSlot = "Claude Code-credentials";
-const liveCounts = { dev: 1, dev2: 0, dev3: 2, main: 0 };
+const liveCounts: Readonly<Record<string, number>> = {
+	dev: 1,
+	dev2: 0,
+	dev3: 2,
+	main: 0,
+};
 
 await test("usage rows use local 24-hour clocks and a weekday for weekly resets", (): void => {
 	const value: SeatUsage = { cachedAgeMs: 0, ok: true, usage };
@@ -67,7 +72,7 @@ const buildRows = (): readonly SeatRow[] =>
 		}
 		return {
 			credential: { ok: true, present: seat.name !== "dev" },
-			live: liveCounts[seat.name],
+			live: liveCounts[seat.name] ?? Number.NaN,
 			seat,
 			usage: result,
 		};

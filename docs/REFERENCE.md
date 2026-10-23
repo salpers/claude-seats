@@ -1,5 +1,8 @@
 # claude-seats — full reference
 
+This reference uses the default seats `main`, `dev`, `dev2` and `dev3`. Set other seats
+in `<seat-home>/.claude-shared/seats.json` (see the README).
+
 One shell entrypoint (`cc`) for Claude Code that launches every new session on the
 seat with the most headroom, spreads concurrent sessions across all seats, and hands a
 session over to another seat when one runs dry.
@@ -7,7 +10,6 @@ session over to another seat when one runs dry.
 Personal tooling — it reads this machine's keychain. Not org-scoped.
 
 - Design: `docs/DESIGN.md` (decisions from the 2026-09-18 grilling session)
-- Tickets: `tickets/` — one Markdown file per ticket, `tickets/README.md` is the board
 - Runtime: TypeScript on Node 24+ (type-stripping, no build step), `node --test`
 
 ## Install
@@ -320,7 +322,7 @@ To measure a specific command explicitly, run
 The benchmark supplies a disposable HOME, config directory, repository and transcript;
 commands with hardcoded external paths may still access those paths. Normal automated
 verification never runs the user's installed command. Python is otherwise only needed
-if the prefix command uses it. Measurements are recorded in `tickets/10-e2e-hardening.md`.
+if the prefix command uses it.
 
 For a standalone suffix (without changing settings), pipe Claude's statusline JSON
 to `node /path/to/claude-seats/src/statusline-cli.mjs`. The same home/state overrides

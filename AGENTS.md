@@ -1,13 +1,13 @@
 # AGENTS.md — conventions for every worker in this repo
 
 Personal CLI tool, TypeScript on Node 24+, run directly (type-stripping) — **no build step**.
-Read `docs/DESIGN.md` first; it is the authoritative spec. Tickets live in `tickets/`.
+Read `docs/DESIGN.md` first; it is the authoritative spec.
 
 ## Toolchain (must stay green: `pnpm verify`)
 - `pnpm verify` = `tsgo --noEmit` →
   `oxlint --type-aware --deny-warnings --report-unused-disable-directives` →
   `biome check --error-on-warnings` → `node --test`.
-  Every ticket lands with `pnpm verify` exit 0. No suppress-comments (`// oxlint-disable`,
+  Every change lands with `pnpm verify` exit 0. No suppress-comments (`// oxlint-disable`,
   `// biome-ignore`, `@ts-ignore`, `@ts-expect-error`) unless a one-line justification sits
   beside it and no rule-conforming alternative exists. Unused Oxlint suppressions fail
   verification. Justifications for `oxlint-disable-next-line <rule>` remain a review
@@ -33,7 +33,7 @@ Read `docs/DESIGN.md` first; it is the authoritative spec. Tickets live in `tick
 - **Secrets**: OAuth tokens are read from the keychain and used in memory only. They must
   never be written to disk, logged, printed, or included in error messages. Tests assert
   this where relevant.
-- Comments explain *why*, never narrate *what*. No dead code, no TODOs without a ticket.
+- Comments explain *why*, never narrate *what*. No dead code, no TODOs without an issue.
 
 ## Testability seams (required — the e2e suite depends on them)
 Environment overrides, all optional, all documented in `README.md`:
@@ -46,12 +46,11 @@ Environment overrides, all optional, all documented in `README.md`:
   the macOS keychain (fixtures only; never used in normal operation).
 With these set to a temp tree the whole CLI must run end-to-end with no real seats touched.
 
-## Working a ticket
-1. Read the ticket file and `docs/DESIGN.md`. Red → green → refactor; the ticket's
-   acceptance criteria become tests wherever they can.
-2. `pnpm verify` green. Then set the ticket's **Status** to `done`, update the row in
-   `tickets/README.md`, and commit **only this ticket's files** with a conventional-commit
-   subject, e.g. `feat(router): auto-route new sessions (ticket 04)`.
+## Working a change
+1. Read the issue and `docs/DESIGN.md`. Red → green → refactor; the acceptance
+   criteria become tests wherever they can.
+2. `pnpm verify` green. Then commit **only this change's files** with a conventional-commit
+   subject, e.g. `feat(router): auto-route new sessions`.
    Never `git add -A`. Never push. Never switch branches.
-3. Report honestly: if something in the ticket cannot be met, say what and why — do not
+3. Report honestly: if something in the issue cannot be met, say what and why — do not
    quietly narrow it.

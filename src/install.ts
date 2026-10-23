@@ -38,7 +38,7 @@ const checkSettings = async (home: string): Promise<readonly string[]> => {
 };
 
 const preflight = async (options: SetupOptions): Promise<SetupReport> => {
-	const entries = setupLayout(options.home, options.state);
+	const entries = setupLayout(options.home, options.state, options.names);
 	const targets = new Set([
 		path.resolve(options.home, ".claude/settings.json"),
 		...entries
@@ -104,7 +104,7 @@ const configure = async (options: SetupOptions): Promise<SetupReport> => {
 		return failed(configured.reason);
 	}
 	return installEntries(
-		setupLayout(options.home, options.state).filter(
+		setupLayout(options.home, options.state, options.names).filter(
 			(entry) => entry.kind === "link",
 		),
 	);
@@ -116,7 +116,7 @@ const install = async (options: SetupOptions): Promise<SetupReport> => {
 		return checked;
 	}
 	const prepared = await installEntries(
-		setupLayout(options.home, options.state).filter(
+		setupLayout(options.home, options.state, options.names).filter(
 			(entry) => entry.kind !== "link",
 		),
 	);

@@ -1,4 +1,4 @@
-"""Synthetic legacy renderer: the real pre-ticket script is not in the checkout."""
+"""Synthetic legacy renderer: the real legacy script is not in the checkout."""
 
 import json
 import sys

@@ -16,7 +16,7 @@ const prepareRoutingProbes = async (
 	readSeats: () => readonly RoutingSeat[] | Promise<readonly RoutingSeat[]>,
 	options: LockedOptions,
 ): Promise<LockedOptions | false> => {
-	if (!options.probe || options.manual) {
+	if (!options.probe || typeof options.manual === "string") {
 		return options;
 	}
 	const stored = await readFallbackState(directory);

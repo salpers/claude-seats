@@ -1,5 +1,5 @@
 import path from "node:path";
-import type { Seat } from "./seats.ts";
+import type { Seat, SeatName } from "./seats.ts";
 import { createSeats } from "./seats.ts";
 
 type LayoutEntry = Readonly<
@@ -38,9 +38,13 @@ const seatLinks = (seat: Seat, home: string): readonly LayoutEntry[] => {
 	return links;
 };
 
-const setupLayout = (home: string, state: string): readonly LayoutEntry[] => {
+const setupLayout = (
+	home: string,
+	state: string,
+	names?: readonly SeatName[],
+): readonly LayoutEntry[] => {
 	const shared = path.join(home, ".claude-shared");
-	const seats = createSeats(home);
+	const seats = createSeats(home, names);
 	return [
 		{ file: home, kind: "directory", label: "seat home" },
 		{ file: shared, kind: "directory", label: "shared store" },

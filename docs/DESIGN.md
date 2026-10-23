@@ -14,7 +14,8 @@ seats, and lets a session be handed to another seat when one runs dry.
 | `main` | bare `~/.claude` — launched with `CLAUDE_CONFIG_DIR` **unset** | `Claude Code-credentials` |
 | `dev`, `dev2`, `dev3` | `~/.claude-<seat>` | `Claude Code-credentials-<sha256(dir)[:8]>` |
 
-`~/.claude-api` is excluded. Identity (`.claude.json`, keychain) stays per seat; session
+`~/.claude-api` is excluded. The table shows the default seats; `~/.claude-shared/seats.json`
+(a JSON array of names) replaces them, and `main` always means bare `~/.claude`. Identity (`.claude.json`, keychain) stays per seat; session
 state (`projects/`, `history.jsonl`, `file-history/`, `shell-snapshots/`, `tasks/`) is
 shared via `~/.claude-shared/`, config via the `~/.claude` hub. (Q2/Q11: option A —
 no new dir, no re-login; the special case is one line.)

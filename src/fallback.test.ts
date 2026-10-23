@@ -24,7 +24,7 @@ const candidates = [
 ];
 
 await test("fallback round-robin persists beyond claims and wraps while respecting live sessions", (): void => {
-	let lastFallbackSeat: SeatName | "none" = "none";
+	let lastFallbackSeat: SeatName = "none";
 	for (const expected of ["main", "dev", "dev2", "dev3", "main"]) {
 		const decision = chooseSeat(candidates, [], { lastFallbackSeat, now });
 		strictEqual(decision.seat, expected);
@@ -43,30 +43,34 @@ await test("fallback round-robin persists beyond claims and wraps while respecti
 	);
 });
 
-await test("fallback rotation uses registry order even for shuffled or missing candidate rows", (): void => {
+await test("fallback rotation follows the row order", (): void => {
 	for (const seats of [candidates, candidates.toReversed()]) {
 		const before = structuredClone(seats);
-		let lastFallbackSeat: SeatName | "none" = "none";
-		for (const expected of ["main", "dev", "dev2", "dev3", "main"]) {
+		const order = seats.map((seat) => seat.seat);
+		let lastFallbackSeat: SeatName = "none";
+		for (const expected of [...order, ...order.slice(zero, one)]) {
 			const decision = chooseSeat(seats, [], { lastFallbackSeat, now });
 			strictEqual(decision.seat, expected);
 			lastFallbackSeat = decision.seat;
 		}
 		deepStrictEqual(seats, before);
 	}
+});
+
+await test("fallback rotation wraps for any seat names and restarts after a removed seat", (): void => {
 	strictEqual(
-		chooseSeat([available("dev3"), available("main")], [], {
-			lastFallbackSeat: "dev2",
+		chooseSeat([available("work"), available("main")], [], {
+			lastFallbackSeat: "main",
 			now,
 		}).seat,
-		"dev3",
+		"work",
 	);
 	strictEqual(
-		chooseSeat([available("dev2"), available("main")], [], {
-			lastFallbackSeat: "dev3",
+		chooseSeat([available("work"), available("main")], [], {
+			lastFallbackSeat: "removed",
 			now,
 		}).seat,
-		"main",
+		"work",
 	);
 });
 

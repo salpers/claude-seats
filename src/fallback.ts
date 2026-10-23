@@ -9,7 +9,7 @@ interface Cooldown {
 }
 interface FallbackState {
 	readonly cooldowns: readonly Cooldown[];
-	readonly lastSeat: SeatName | "none";
+	readonly lastSeat: SeatName;
 }
 type SeatProbe = (seat: SeatName) => ProbeResult | Promise<ProbeResult>;
 interface PreparedFallback {

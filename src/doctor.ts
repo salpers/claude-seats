@@ -5,7 +5,7 @@ import { checkCredential } from "./credentials.ts";
 import { failFastSettings } from "./handoff-settings.ts";
 import type { ConfigRead } from "./project-config-file.ts";
 import { readProjectFile } from "./project-config-file.ts";
-import type { Seat } from "./seats.ts";
+import type { Seat, SeatName } from "./seats.ts";
 import { createSeats } from "./seats.ts";
 import type { EntryState } from "./setup-files.ts";
 import { inspectEntry, privateStateDirectory } from "./setup-files.ts";
@@ -22,6 +22,7 @@ interface SetupOptions {
 	readonly home: string;
 	readonly state: string;
 	readonly fixtureDirectory?: string | undefined;
+	readonly names?: readonly SeatName[];
 }
 interface DoctorIo {
 	readonly inspect: (entry: LayoutEntry) => EntryState | Promise<EntryState>;
@@ -124,7 +125,7 @@ const layoutProblems = async (
 	io: DoctorIo,
 ): Promise<readonly string[]> => {
 	const results = await Promise.all(
-		setupLayout(options.home, options.state).map(
+		setupLayout(options.home, options.state, options.names).map(
 			async (entry): Promise<readonly string[]> => {
 				if ((await io.inspect(entry)) !== "ready") {
 					return [layoutProblem(entry)];
@@ -141,7 +142,9 @@ const doctor = async (
 	io: DoctorIo = doctorIo(options),
 ): Promise<SetupReport> => {
 	const credentials = await Promise.all(
-		createSeats(options.home).map(async (seat) => credentialProblem(seat, io)),
+		createSeats(options.home, options.names).map(async (seat) =>
+			credentialProblem(seat, io),
+		),
 	);
 	const messages = [
 		...authEnvironmentProblems(options.env ?? {}),

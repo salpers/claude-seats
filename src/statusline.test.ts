@@ -96,7 +96,7 @@ await test("zero and fractional usage survive validation, including absent reset
 	);
 });
 
-await test("dev3 and bare main render the ticket suffix with local reset clocks", (): void => {
+await test("dev3 and bare main render the seat suffix with local reset clocks", (): void => {
 	for (const seat of ["main", "dev3"]) {
 		strictEqual(
 			formatStatuslineSegment(seat, usage, "Europe/Berlin"),

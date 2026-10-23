@@ -1,6 +1,5 @@
 import type { ProbeResult } from "./claude-probe.ts";
 import type { SeatName } from "./seats.ts";
-import { compareSeatNames } from "./seats.ts";
 import type { Usage, UsageWindow } from "./usage.ts";
 
 interface Claim {
@@ -30,7 +29,7 @@ interface RoutingRow {
 	readonly cooldownUntil?: number;
 }
 interface Decision {
-	readonly seat: SeatName | "none";
+	readonly seat: SeatName;
 	readonly mode: "auto" | "manual";
 	readonly reason:
 		| "manual"
@@ -43,12 +42,13 @@ interface Decision {
 interface RoutingOptions {
 	readonly now: number;
 	readonly manual?: SeatName | undefined;
-	readonly lastFallbackSeat?: SeatName | "none";
+	readonly lastFallbackSeat?: SeatName;
 }
 const claimLifetimeMs = 10_000;
 const exhausted = 100;
 const nearLimit = 90;
 const zero = 0;
+const one = 1;
 const rankingReason =
 	"fewest live sessions + claims; below 90% 5h first; lowest 7d; registry order";
 const fallbackReason = "fallback: fewest live sessions + claims; round-robin";
@@ -146,29 +146,21 @@ const rankingUsage = (window: number | "unknown"): number => {
 	}
 	return window;
 };
+// Two unknown windows tie instead of yielding Infinity - Infinity = NaN.
+const compareUsage = (left: number, right: number): number =>
+	Number(left > right) - Number(left < right);
 const compare = (left: RoutingRow, right: RoutingRow): number =>
 	left.live + left.claims - right.live - right.claims ||
 	Number(rankingUsage(left.fiveHour) >= nearLimit) -
 		Number(rankingUsage(right.fiveHour) >= nearLimit) ||
-	rankingUsage(left.sevenDay) - rankingUsage(right.sevenDay) ||
-	compareSeatNames(left.seat, right.seat);
+	compareUsage(rankingUsage(left.sevenDay), rankingUsage(right.sevenDay));
 const chooseFallback = (
 	rows: readonly RoutingRow[],
-	lastFallbackSeat: SeatName | "none",
+	lastFallbackSeat: SeatName,
 ): Decision => {
-	const ordered = rows.toSorted((left, right) =>
-		compareSeatNames(left.seat, right.seat),
-	);
-	// The cursor can belong to a seat absent from this invocation's candidate rows.
-	const next = Math.max(
-		zero,
-		ordered.findIndex(
-			(row) =>
-				lastFallbackSeat === "none" ||
-				compareSeatNames(row.seat, lastFallbackSeat) > zero,
-		),
-	);
-	const rotated = [...ordered.slice(next), ...ordered.slice(zero, next)];
+	// A cursor no longer in the registry (or "none") restarts at the first seat.
+	const next = rows.findIndex((row) => row.seat === lastFallbackSeat) + one;
+	const rotated = [...rows.slice(next), ...rows.slice(zero, next)];
 	const [probed] = rotated
 		.filter((row) => row.status === "probed")
 		.toSorted(
@@ -191,6 +183,7 @@ const chooseSeat = (
 	claims: readonly Claim[],
 	{ now, manual, lastFallbackSeat = "none" }: RoutingOptions,
 ): Decision => {
+	// `seats` arrive in registry order; toSorted is stable, so ties and fallback rotation keep it.
 	const rows = seats.map((seat) => snapshot(seat, claims, now));
 	if (typeof manual === "string") {
 		return { mode: "manual", reason: "manual", rows, seat: manual };

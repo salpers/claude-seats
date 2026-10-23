@@ -9,7 +9,12 @@ import { usage } from "./usage-test-fixture.ts";
 const titleRow = 0;
 const oneOffset = 1;
 const busy = 91;
-const liveCounts = { dev: 1, dev2: 0, dev3: 2, main: 0 };
+const liveCounts: Readonly<Record<string, number>> = {
+	dev: 1,
+	dev2: 0,
+	dev3: 2,
+	main: 0,
+};
 
 const buildRows = (): readonly SeatRow[] =>
 	createSeats("/tmp/seats").map((seat): SeatRow => {
@@ -29,7 +34,7 @@ const buildRows = (): readonly SeatRow[] =>
 		}
 		return {
 			credential: { ok: true, present: seat.name !== "dev" },
-			live: liveCounts[seat.name],
+			live: liveCounts[seat.name] ?? Number.NaN,
 			seat,
 			usage: result,
 		};

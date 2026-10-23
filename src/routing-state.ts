@@ -67,7 +67,7 @@ const recordSelection = async (
 ): Promise<RoutingResult> => {
 	// Counts and claims must be read under the same lock as reservation and audit writes.
 	const rows = await readSeats();
-	if (probe && !manual) {
+	if (probe && typeof manual !== "string") {
 		return recordFallback(directory, rows, { probe, resume });
 	}
 	return recordDecision(rows, createStateIo(directory), {

@@ -24,7 +24,7 @@ await test("captured limit errors retain their clocks and timezone annotations",
 	}
 });
 
-await test("ticket limit messages parse 12-hour, 24-hour and timezone clocks", (): void => {
+await test("documented limit messages parse 12-hour, 24-hour and timezone clocks", (): void => {
 	for (const text of [
 		"hit your session limit · resets 13:50",
 		"You've hit your limit · resets 1:50pm",

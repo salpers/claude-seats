@@ -27,21 +27,34 @@ When a seat is at its limit, `cc -r` moves your session to a different seat.
 | 📊 | **Statusline** | Shows the seat and its 5h / 7d usage in Claude Code. |
 | 🖥️ | **Menu bar** | Shows all seats in the macOS menu bar (SwiftBar). |
 | 🔗 | **Project sync** | Copies trust, MCP servers and allowed tools to all seats. |
+| 🏷️ | **Your seat names** | Reads the seat list from `seats.json`. |
 
 ## Seats
 
 | Seat | Config directory | Keychain slot |
 |---|---|---|
 | `main` | `~/.claude` (`CLAUDE_CONFIG_DIR` unset) | `Claude Code-credentials` |
-| `dev`, `dev2`, `dev3` | `~/.claude-<seat>` | `Claude Code-credentials-<hash>` |
+| any other name | `~/.claude-<name>` | `Claude Code-credentials-<hash>` |
 
 Each seat keeps its own login.
 All seats share sessions, history and settings through `~/.claude-shared/` and `~/.claude`.
 
-> [!IMPORTANT]
-> The seat names are fixed in [`src/seats.ts`](src/seats.ts).
-> To change the names or the number of seats, edit `SeatName` and `names` in that file, then update the tests.
-> A seat `<name>` uses `~/.claude-<name>`. Only `main` uses `~/.claude`.
+### Configure the seats
+
+Put the seat names in `~/.claude-shared/seats.json`, in registry order:
+
+```json
+["main", "work", "personal"]
+```
+
+- If the file does not exist, `cc` uses `main`, `dev`, `dev2` and `dev3`.
+- A name has lowercase letters, digits and `-`. It starts with a letter or a digit.
+- Do not use `none`, `shared` or `unknown`. Do not use a name two times.
+- The order breaks ties in the seat selection.
+- After you change the file, run `cc install`, then `cc doctor`.
+
+> [!CAUTION]
+> If the file is not valid, `cc` does not start Claude. `cc doctor` shows the problem.
 
 ## Install
 
@@ -116,7 +129,7 @@ Thus, you can pipe the Claude output.
    1. Fewest live sessions and claims.
    2. 5h usage below 90 %.
    3. Lowest 7d usage.
-   4. Registry order: `main`, `dev`, `dev2`, `dev3`.
+   4. Registry order (the order in `seats.json`).
 4. If no seat is left, show the table and exit with code 3.
 
 If the usage endpoint fails, `cc` uses cached data up to 10 minutes old.
@@ -195,7 +208,6 @@ pnpm verify   # tsgo → oxlint → biome → node --test
 |---|---|
 | [`docs/REFERENCE.md`](docs/REFERENCE.md) | Full behavior: install, routing, claims, statusline, sync. |
 | [`docs/DESIGN.md`](docs/DESIGN.md) | Design decisions. |
-| [`tickets/`](tickets/README.md) | Build tickets and test notes. |
 
 ## License
 

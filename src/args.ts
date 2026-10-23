@@ -1,5 +1,4 @@
 import type { SeatName } from "./seats.ts";
-import { isSeatName } from "./seats.ts";
 
 const noSelector = 0;
 const selectorLength = 1;
@@ -22,17 +21,20 @@ type ParsedArgs =
 	  }
 	| { readonly ok: false; readonly reason: string };
 
-const usage: ParsedArgs = {
+const usage = (names: readonly SeatName[]): ParsedArgs => ({
 	ok: false,
-	reason: "Use @ to list seats, or @main, @dev, @dev2, @dev3 to launch.",
-};
+	reason: `Use @ to list seats, or ${names.map((name) => `@${name}`).join(", ")} to launch.`,
+});
 
-const parseSelector = (selector: string): ParsedArgs => {
+const parseSelector = (
+	selector: string,
+	names: readonly SeatName[],
+): ParsedArgs => {
 	const seat = selector.slice(selectorLength);
-	if (isSeatName(seat)) {
+	if (names.includes(seat)) {
 		return { consumed: selectorLength, kind: "launch", ok: true, seat };
 	}
-	return usage;
+	return usage(names);
 };
 
 const parseCommand = (
@@ -45,7 +47,10 @@ const parseCommand = (
 	return { ok: false, reason: `Use cc ${kind} without additional arguments.` };
 };
 
-const parseArgs = (args: readonly string[]): ParsedArgs => {
+const parseArgs = (
+	args: readonly string[],
+	names: readonly SeatName[],
+): ParsedArgs => {
 	const [first] = args;
 	if (first === "doctor" || first === "install" || first === "menu") {
 		return parseCommand(first, args.length);
@@ -54,10 +59,10 @@ const parseArgs = (args: readonly string[]): ParsedArgs => {
 		if (args.length === selectorLength) {
 			return { kind: "list", ok: true };
 		}
-		return usage;
+		return usage(names);
 	}
 	if (typeof first === "string" && first.startsWith("@")) {
-		return parseSelector(first);
+		return parseSelector(first, names);
 	}
 	return { consumed: noSelector, kind: "auto", ok: true };
 };

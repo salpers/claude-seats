@@ -11,11 +11,12 @@ const millisecondsPerSecond = 1000;
 const statuslineSeat = (
 	home: string,
 	configDirectory?: string,
-): SeatName | "unknown" => {
+	names?: readonly SeatName[],
+): SeatName => {
 	if (typeof configDirectory !== "string" || configDirectory === "") {
 		return "main";
 	}
-	const match = createSeats(home).find(
+	const match = createSeats(home, names).find(
 		(seat) => seat.directory === path.resolve(configDirectory),
 	);
 	if (match && home !== "") {
