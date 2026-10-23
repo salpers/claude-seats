@@ -54,19 +54,18 @@ const usageFor = (row: SeatRow | undefined): Usage | "unknown" => {
 const routingRows = async (
 	seats: readonly Seat[],
 	rows: readonly SeatRow[],
-): Promise<readonly RoutingSeat[]> =>
-	Promise.all(
-		seats.map(async (seat): Promise<RoutingSeat> => {
-			const row = rows.find((entry) => entry.seat.name === seat.name);
-
-			return {
-				live: await countLiveSessions(seat.directory),
-				probe: canProbe(row),
-				seat: seat.name,
-				usage: usageFor(row),
-			};
-		}),
-	);
+): Promise<readonly RoutingSeat[]> => {
+	const live = await countLiveSessions(seats);
+	return seats.map((seat): RoutingSeat => {
+		const row = rows.find((entry) => entry.seat.name === seat.name);
+		return {
+			live: live.get(seat.name) ?? zero,
+			probe: canProbe(row),
+			seat: seat.name,
+			usage: usageFor(row),
+		};
+	});
+};
 const refuse = (reason: string, rows: readonly SeatRow[]): Selection => {
 	let exitCode = unavailable;
 	if (reason === "all seats exhausted") {

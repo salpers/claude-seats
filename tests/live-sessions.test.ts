@@ -5,6 +5,11 @@ import { mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { test } from "node:test";
+import {
+	seedRouting,
+	seedSharedSessions,
+	startSession,
+} from "./routing-fixture.ts";
 import type { Context, Fixture } from "./shim-fixture.ts";
 import { fixture, run } from "./shim-fixture.ts";
 
@@ -145,4 +150,40 @@ await test("main's live count comes from bare .claude under the effective home",
 			main: "1",
 		});
 	}
+});
+
+await test("seats linked to one registry count each session on the seat its CLAUDE_CONFIG_DIR names", async (context: Context): Promise<void> => {
+	const setup = await fixture(context);
+	const pids = await Promise.all(
+		["main", "dev3", "dev3"].map(async (name) =>
+			startSession(context, setup, name),
+		),
+	);
+	await seedSharedSessions(
+		setup,
+		["main", "dev", "dev2", "dev3"],
+		[...pids, await exitedPid()],
+	);
+	const result = await run(setup, ["@"]);
+	strictEqual(result.status, success, result.stderr);
+	deepStrictEqual(liveCounts(result.stdout), {
+		dev: "0",
+		dev2: "0",
+		dev3: "2",
+		main: "1",
+	});
+});
+
+await test("cc ranks seats on a shared registry by the live sessions each seat runs", async (context: Context): Promise<void> => {
+	const setup = await fixture(context);
+	await seedRouting(setup);
+	const pids = await Promise.all(
+		["main", "dev", "dev3"].map(async (name) =>
+			startSession(context, setup, name),
+		),
+	);
+	await seedSharedSessions(setup, ["main", "dev", "dev2", "dev3"], pids);
+	const result = await run(setup, []);
+	strictEqual(result.status, success, result.stderr);
+	strictEqual(result.stderr, "cc: using dev2\nreturned:0\n");
 });

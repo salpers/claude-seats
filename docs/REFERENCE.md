@@ -46,7 +46,7 @@ bin link, and you add the source line to `.zshrc`. Automated verification instal
 only into disposable fixture homes.
 
 `cc install` is idempotent. It creates missing seat directories and shared-store
-entries, links the five session entries below from each seat, and links
+entries, links the six session entries below from each seat, and links
 `dev`/`dev2`/`dev3` settings to the `.claude` hub. It wires the statusline, disables
 waiting at usage limits, and creates or secures the router state directory with
 mode `0700`. Existing shared transcripts, seat identities and unrelated settings
@@ -54,7 +54,7 @@ are preserved. It neither reads credentials nor logs in, and does not edit `.zsh
 
 | Entry in each seat | Target |
 |---|---|
-| `projects/`, `file-history/`, `shell-snapshots/`, `tasks/` | Same name under `<seat-home>/.claude-shared/` |
+| `projects/`, `file-history/`, `shell-snapshots/`, `tasks/`, `sessions/` | Same name under `<seat-home>/.claude-shared/` |
 | `history.jsonl` | `<seat-home>/.claude-shared/history.jsonl` |
 | `settings.json` in `dev`, `dev2`, `dev3` | `<seat-home>/.claude/settings.json` |
 
@@ -186,6 +186,20 @@ exclude stale entries without signaling the process; permission-denied checks
 still indicate a live process. Missing or unreadable directories count as zero.
 Malformed names, temporary `.key.tmp.<hex>` files, subdirectories and symlinks
 are ignored. Key files are never modified or removed.
+
+When several seats' `sessions` links resolve to one registry, the default after
+`cc install`, one `ps -E` call reads the environment of its live PIDs, and each
+counts for the seat whose directory its `CLAUDE_CONFIG_DIR` names; a process
+without one counts for `main`. Only the matched seat leaves memory: environments
+can hold tokens. A PID whose environment cannot be read within 5 seconds, or
+that names no seat, is not counted.
+
+`cc migrate --apply` links a seat's own `sessions/` while sessions run. It renames
+the folder aside, links `sessions` to the shared registry in its place, then
+hard-links each file into the shared registry (a file a session already rewrote
+there wins) and removes the parked folder. A session that recreates the folder in
+between is parked the same way, up to three times. Claude Code resolves the
+registry path on every write, so live sessions keep their messaging keys.
 
 Usage is fetched per seat with a 5-second timeout and cached for 60 seconds.
 When a refresh fails, last-good data up to 10 minutes old is displayed with an age

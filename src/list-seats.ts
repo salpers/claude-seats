@@ -10,6 +10,8 @@ import { createUsageCache } from "./usage-cache.ts";
 import { fetchUsage } from "./usage-client.ts";
 import { probeSeatUsage } from "./usage-probe.ts";
 
+const zero = 0;
+
 const stateDirectory = (
 	env: Readonly<Record<string, string | undefined>>,
 	home: string,
@@ -23,6 +25,8 @@ const readSeatRows = async (
 ): Promise<readonly SeatRow[]> => {
 	const fixtureDirectory = env["CLAUDE_SEATS_KEYCHAIN_DIR"];
 	const cache = createUsageCache(stateDirectory(env, home));
+	// Reading process environments can take a while under load, so it overlaps the usage requests.
+	const counting = countLiveSessions(seats);
 	const rows = await Promise.all(
 		seats.map(async (seat): Promise<SeatRow> => {
 			const credential = await checkCredential(seat.slot, { fixtureDirectory });
@@ -33,8 +37,8 @@ const readSeatRows = async (
 				request: async (accessToken: string) =>
 					fetchUsage(accessToken, { baseUrl: env["CLAUDE_SEATS_USAGE_URL"] }),
 			});
-			const live = await countLiveSessions(seat.directory);
-			return { credential, live, seat, usage };
+			const live = await counting;
+			return { credential, live: live.get(seat.name) ?? zero, seat, usage };
 		}),
 	);
 	return rows;

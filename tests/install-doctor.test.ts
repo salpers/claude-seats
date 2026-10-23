@@ -52,6 +52,7 @@ const assertLayout = async (setup: Fixture): Promise<void> => {
 					"file-history",
 					"shell-snapshots",
 					"tasks",
+					"sessions",
 				].map(async (entry): Promise<void> => {
 					await assertLink(
 						path.join(setup.home, directory, entry),

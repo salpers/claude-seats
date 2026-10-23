@@ -16,8 +16,10 @@ seats, and lets a session be handed to another seat when one runs dry.
 
 `~/.claude-api` is excluded. The table shows the default seats; `~/.claude-shared/seats.json`
 (a JSON array of names) replaces them, and `main` always means bare `~/.claude`. Identity (`.claude.json`, keychain) stays per seat; session
-state (`projects/`, `history.jsonl`, `file-history/`, `shell-snapshots/`, `tasks/`) is
-shared via `~/.claude-shared/`, config via the `~/.claude` hub. (Q2/Q11: option A —
+state (`projects/`, `history.jsonl`, `file-history/`, `shell-snapshots/`, `tasks/`,
+`sessions/`) is shared via `~/.claude-shared/`, config via the `~/.claude` hub. The shared
+`sessions/` registry lets Claude's `ListAgents`/`SendMessage` reach every seat: peers
+authenticate by Unix user and registry key file, not by account (issue #3). (Q2/Q11: option A —
 no new dir, no re-login; the special case is one line.)
 
 ## Routing (Q7a)
@@ -35,7 +37,9 @@ no new dir, no re-login; the special case is one line.)
    Only two unknown windows require fallback. Live sessions are distinct live PIDs
    parsed from `<dir>/sessions/<pid>.<sha256>.key` filenames (64 lowercase hex
    characters); temporary `.key.tmp.<hex>` entries are ignored. Key contents are
-   not read. A fresh session's first turn is the expensive one.
+   not read. When several seats' `sessions/` resolve to one registry, each live PID
+   counts for the seat its `CLAUDE_CONFIG_DIR` names (`ps -E`; unset means `main`).
+   A fresh session's first turn is the expensive one.
 4. Endpoint down: last-good cache ≤ 10 min; else probe candidate seats with a minimal
    `-p` call, parse `resets HH:MM` into a cooldown, round-robin the rest.
 5. Every decision appends one line to `~/.claude-shared/_seats/decisions.log`.

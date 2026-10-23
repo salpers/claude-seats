@@ -1,5 +1,14 @@
-import { match, ok, strictEqual } from "node:assert/strict";
-import { lstat, mkdir, readFile, readlink, writeFile } from "node:fs/promises";
+import { deepStrictEqual, match, ok, strictEqual } from "node:assert/strict";
+import {
+	chmod,
+	lstat,
+	mkdir,
+	readdir,
+	readFile,
+	readlink,
+	stat,
+	writeFile,
+} from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { test } from "node:test";
@@ -13,6 +22,13 @@ const devPlanPattern =
 const mergeHintPattern = /merge-seat-conflicts skill/u;
 const nothingPattern = /Nothing to migrate/u;
 const quitPattern = /Quit every Claude session/u;
+const sharePlanPattern =
+	/dev: 0 to move, 0 identical, 0 to set aside, 0 blocked, 0 history file, 1 sessions folder to link/u;
+const keepRunningPattern = /live Claude sessions keep running/u;
+const keyMode = 0o600;
+const modeBase = 0o1000;
+const hashLength = 64;
+const keyName = `${String(process.pid)}.${"0".repeat(hashLength)}.key`;
 const history = (timestamp: number): string =>
 	JSON.stringify({ display: `prompt ${String(timestamp)}`, timestamp });
 const first = 1;
@@ -124,4 +140,48 @@ await test("cc migrate --apply refuses while a Claude session is live and moves 
 	strictEqual(refused.status, unavailable);
 	match(refused.stderr, quitPattern);
 	strictEqual(await read(setup, ".claude/projects/p/a.jsonl"), "main a");
+});
+
+const seedLiveRegistry = async (setup: Fixture): Promise<void> => {
+	await Promise.all([
+		put(setup, `.claude-dev/sessions/${keyName}`, '{"pidDomain":"local"}'),
+		put(setup, `.claude-dev/sessions/${String(process.pid)}.json`, "{}"),
+		put(setup, ".claude/sessions/1.json", "{}"),
+	]);
+	await chmod(path.join(setup.home, ".claude-dev/sessions", keyName), keyMode);
+};
+
+const assertSharedRegistry = async (setup: Fixture): Promise<void> => {
+	const shared = path.join(setup.home, ".claude-shared/sessions");
+	const links = await Promise.all(
+		[".claude", ".claude-dev", ".claude-dev3"].map(async (seat) =>
+			readlink(path.join(setup.home, seat, "sessions")),
+		),
+	);
+	deepStrictEqual(links, [shared, shared, shared]);
+	const files = await readdir(shared);
+	deepStrictEqual(
+		files.toSorted(),
+		[`${String(process.pid)}.json`, keyName, "1.json"].toSorted(),
+	);
+	const key = await stat(path.join(shared, keyName));
+	strictEqual(key.mode % modeBase, keyMode);
+	const seatFiles = await readdir(path.join(setup.home, ".claude-dev"));
+	deepStrictEqual(
+		seatFiles.filter((name) => name.startsWith("sessions.")),
+		[],
+	);
+};
+
+await test("cc migrate --apply links every seat's sessions folder to one registry while a session is live", async (context: Context): Promise<void> => {
+	const setup = await fixture(context);
+	await seedLiveRegistry(setup);
+	const planned = await run(setup, ["migrate"]);
+	match(planned.stdout, sharePlanPattern);
+	match(planned.stdout, keepRunningPattern);
+	const applied = await run(setup, ["migrate", "--apply"]);
+	strictEqual(applied.status, success, applied.stderr);
+	await assertSharedRegistry(setup);
+	const again = await run(setup, ["migrate"]);
+	match(again.stdout, nothingPattern);
 });

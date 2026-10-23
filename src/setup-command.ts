@@ -39,6 +39,14 @@ const mergeHint = (steps: readonly Step[], home: string): readonly string[] => {
 	];
 };
 
+// Only moving the session registry is safe while sessions run.
+const nextStep = (steps: readonly Step[]): string => {
+	if (count(steps, "share") === steps.length) {
+		return "Nothing changed. Run cc migrate --apply; live Claude sessions keep running.";
+	}
+	return "Nothing changed. Quit every Claude session, then run cc migrate --apply.";
+};
+
 const migrateReport = async (
 	command: "migrate" | "migrate-apply",
 	options: SetupOptions,
@@ -54,13 +62,7 @@ const migrateReport = async (
 		};
 	}
 	if (command === "migrate") {
-		return {
-			messages: [
-				...formatPlan(steps),
-				"Nothing changed. Quit every Claude session, then run cc migrate --apply.",
-			],
-			ok: true,
-		};
+		return { messages: [...formatPlan(steps), nextStep(steps)], ok: true };
 	}
 	const migrated = await applyMigration(steps, seats, options.home);
 	if (!migrated.ok) {

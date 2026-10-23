@@ -9,11 +9,14 @@ type LayoutEntry = Readonly<
 	)
 >;
 const shimSource = path.resolve(import.meta.dirname, "../bin/cc.zsh");
-const sharedDirectories = [
+// Claude Code's session registry: one shared registry lets every seat's sessions message each other.
+const sessionRegistry = "sessions";
+const sharedDirectories: readonly string[] = [
 	"projects",
 	"file-history",
 	"shell-snapshots",
 	"tasks",
+	sessionRegistry,
 ];
 const sharedEntries: readonly string[] = [
 	...sharedDirectories,
@@ -91,4 +94,4 @@ const layoutProblem = (entry: LayoutEntry): string => {
 };
 
 export type { LayoutEntry };
-export { layoutProblem, setupLayout, sharedDirectories };
+export { layoutProblem, sessionRegistry, setupLayout, sharedDirectories };

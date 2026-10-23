@@ -1,9 +1,9 @@
 import { lstat, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import type { Seat, SeatName } from "./seats.ts";
-import { sharedDirectories } from "./setup-layout.ts";
+import { sessionRegistry, sharedDirectories } from "./setup-layout.ts";
 
-type Action = "move" | "same" | "park" | "blocked" | "history";
+type Action = "move" | "same" | "park" | "blocked" | "history" | "share";
 interface Step {
 	readonly action: Action;
 	readonly seat: SeatName;
@@ -18,6 +18,11 @@ interface FileTargets {
 }
 // Targets claimed by earlier seats in this plan, mapped to the file that will land there.
 type Claimed = Readonly<Record<string, string>>;
+
+// Live sessions keep writing the registry, so it moves whole in a "share" step instead.
+const movedDirectories = sharedDirectories.filter(
+	(name) => name !== sessionRegistry,
+);
 
 const kindOf = async (file: string): Promise<"directory" | "file" | false> => {
 	try {
@@ -112,9 +117,7 @@ const directorySteps = async (
 	claimed: Claimed,
 ): Promise<readonly Step[]> => {
 	const shared = path.join(home, ".claude-shared");
-	const roots = sharedDirectories.map((name) =>
-		path.join(seat.directory, name),
-	);
+	const roots = movedDirectories.map((name) => path.join(seat.directory, name));
 	const kinds = await Promise.all(roots.map(async (root) => kindOf(root)));
 	const trees = await Promise.all(
 		roots
@@ -139,6 +142,18 @@ const historySteps = async (
 	}
 	const to = path.join(home, ".claude-shared", "history.jsonl");
 	return [{ action: "history", from, seat: seat.name, to }];
+};
+
+const registrySteps = async (
+	seat: Seat,
+	home: string,
+): Promise<readonly Step[]> => {
+	const from = path.join(seat.directory, sessionRegistry);
+	if ((await kindOf(from)) !== "directory") {
+		return [];
+	}
+	const to = path.join(home, ".claude-shared", sessionRegistry);
+	return [{ action: "share", from, seat: seat.name, to }];
 };
 
 // Non-main seats link settings.json to the hub; a seat's own copy is set aside for merging.
@@ -170,6 +185,7 @@ const seatSteps = async (
 	...(await directorySteps(seat, home, claimed)),
 	...(await historySteps(seat, home)),
 	...(await settingsSteps(seat, home, claimed)),
+	...(await registrySteps(seat, home)),
 ];
 
 // Seats are planned one after another, so a file claimed by an earlier seat is compared, not overwritten.
@@ -201,4 +217,4 @@ const planMigration = async (
 ): Promise<readonly Step[]> => planSeats(seats, home, {});
 
 export type { Action, Step };
-export { listTree, planMigration };
+export { listTree, movedDirectories, planMigration };

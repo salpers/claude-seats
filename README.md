@@ -42,6 +42,7 @@ A seat is one Claude Code login.
 - `main` is the login that `claude` uses without `cc`.
 - Each other seat is a Claude Code config folder (`CLAUDE_CONFIG_DIR`). To log in, run `cc @<name> auth login` one time.
 - All seats share sessions, history and memory through `~/.claude-shared/`, and settings through `~/.claude/settings.json`.
+- All seats share one session registry, so `ListAgents` and `SendMessage` in Claude reach sessions on every seat.
 
 ### Configure the seats
 
@@ -87,7 +88,7 @@ Put the seat names in `~/.claude-shared/seats.json`, in registry order:
 
 `cc install` does these steps:
 
-- Links `projects/`, `history.jsonl`, `file-history/`, `shell-snapshots/` and `tasks/` of each seat to `~/.claude-shared/`.
+- Links `projects/`, `history.jsonl`, `file-history/`, `shell-snapshots/`, `tasks/` and `sessions/` of each seat to `~/.claude-shared/`.
 - Links `settings.json` of each seat except `main` to `~/.claude/settings.json`.
 - Sets the statusline and `autoContinueAtUsageLimit: false`.
 - Does not read credentials, log in or change `.zshrc`.
@@ -165,10 +166,12 @@ Use this procedure when your seats already have their own sessions, memory or hi
 | Different content | Set aside in `~/.claude-shared/_conflicts/<seat>/`. |
 | `history.jsonl` | Lines added to the shared history, in time order. |
 | `settings.json` of a seat other than `main` | Set aside, then linked to `~/.claude/settings.json`. |
+| `sessions/` (the session registry) | Replaced by a link to `~/.claude-shared/sessions/`, then its files moved there. |
 
 > [!NOTE]
 > `cc migrate --apply` writes each action to `~/.claude-shared/_migration-<time>.log`.
-> It refuses to start while a Claude session is live.
+> It refuses to start while a Claude session is live, unless only `sessions/` is left to link.
+> Live sessions keep running through that step.
 
 ## Move a session to a different seat
 

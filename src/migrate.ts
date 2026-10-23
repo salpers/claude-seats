@@ -1,8 +1,12 @@
 import {
+	link,
+	lstat,
 	mkdir,
+	readdir,
 	readFile,
 	rename,
 	rmdir,
+	symlink,
 	unlink,
 	writeFile,
 } from "node:fs/promises";
@@ -11,13 +15,17 @@ import process from "node:process";
 import type { SetupReport } from "./doctor.ts";
 import { isRecord, parseJson } from "./json.ts";
 import type { Action, Step } from "./migrate-plan.ts";
-import { listTree } from "./migrate-plan.ts";
+import { listTree, movedDirectories } from "./migrate-plan.ts";
 import type { Seat, SeatName } from "./seats.ts";
 import { countLiveSessions } from "./sessions.ts";
-import { sharedDirectories } from "./setup-layout.ts";
 
 const zero = 0;
+const first = 1;
+const swapAttempts = 3;
+const registryMode = 0o700;
 const lineBreak = "\n";
+const hasCode = (error: unknown, code: string): boolean =>
+	isRecord(error) && error["code"] === code;
 
 const timestamp = (line: string): number => {
 	const parsed = parseJson(line);
@@ -35,7 +43,7 @@ const readLines = async (file: string): Promise<readonly string[]> => {
 		const text = await readFile(file, "utf8");
 		return text.split(lineBreak).filter((line) => line !== "");
 	} catch (error) {
-		if (isRecord(error) && error["code"] === "ENOENT") {
+		if (hasCode(error, "ENOENT")) {
 			return [];
 		}
 		throw error;
@@ -97,6 +105,11 @@ const removeInOrder = async (
 
 const removeEmptyDirectories = async (root: string): Promise<void> => {
 	try {
+		// A linked root would list the shared store, whose empty folders live sessions may use.
+		const info = await lstat(root);
+		if (!info.isDirectory()) {
+			return;
+		}
 		const tree = await listTree(root);
 		// Longer paths first, so every child goes before its parent.
 		const directories: readonly Readonly<{ file: string }>[] = [
@@ -113,12 +126,66 @@ const removeEmptyDirectories = async (root: string): Promise<void> => {
 	}
 };
 
+// A session can recreate the folder between the rename and the link: park that one too, then retry.
+const swapRegistry = async (
+	step: Step,
+	attempt: number,
+): Promise<readonly string[]> => {
+	const parked = `${step.from}.pre-share-${String(process.pid)}-${String(attempt)}`;
+	await rename(step.from, parked);
+	try {
+		await symlink(step.to, step.from);
+		return [parked];
+	} catch (error) {
+		if (attempt < swapAttempts && hasCode(error, "EEXIST")) {
+			return [parked, ...(await swapRegistry(step, attempt + first))];
+		}
+		throw error;
+	}
+};
+
+// Hard links keep each key file's mode 0600; a file its session already rewrote in the shared registry wins.
+const drainFile = async (from: string, to: string): Promise<void> => {
+	try {
+		await link(from, to);
+	} catch (error) {
+		if (!hasCode(error, "EEXIST")) {
+			throw error;
+		}
+	}
+	await unlink(from);
+};
+const drainRegistry = async (parked: string, shared: string): Promise<void> => {
+	const entries = await readdir(parked, { withFileTypes: true });
+	const files: string[] = [];
+	for (const entry of entries) {
+		if (entry.isFile()) {
+			files.push(entry.name);
+		}
+	}
+	await Promise.all(
+		files.map(async (name) =>
+			drainFile(path.join(parked, name), path.join(shared, name)),
+		),
+	);
+	await rmdir(parked);
+};
+
+// Live sessions keep running: Claude Code resolves the registry path on every write.
+const shareRegistry = async (step: Step): Promise<void> => {
+	await mkdir(step.to, { mode: registryMode, recursive: true });
+	const parked = await swapRegistry(step, first);
+	await Promise.all(
+		parked.map(async (directory) => drainRegistry(directory, step.to)),
+	);
+};
+
 const count = (steps: readonly Step[], action: Action): number =>
 	steps.filter((step) => step.action === action).length;
 
 const seatSummary = (steps: readonly Step[], seat: SeatName): string => {
 	const own = steps.filter((step) => step.seat === seat);
-	return `${seat}: ${String(count(own, "move"))} to move, ${String(count(own, "same"))} identical, ${String(count(own, "park"))} to set aside, ${String(count(own, "blocked"))} blocked, ${String(count(own, "history"))} history file`;
+	return `${seat}: ${String(count(own, "move"))} to move, ${String(count(own, "same"))} identical, ${String(count(own, "park"))} to set aside, ${String(count(own, "blocked"))} blocked, ${String(count(own, "history"))} history file, ${String(count(own, "share"))} sessions folder to link`;
 };
 
 const formatPlan = (steps: readonly Step[]): readonly string[] =>
@@ -127,10 +194,8 @@ const formatPlan = (steps: readonly Step[]): readonly string[] =>
 	);
 
 const liveSessions = async (seats: readonly Seat[]): Promise<number> => {
-	const counts = await Promise.all(
-		seats.map(async (seat) => countLiveSessions(seat.directory)),
-	);
-	return counts.reduce((total, live) => total + live, zero);
+	const counts = await countLiveSessions(seats);
+	return [...counts.values()].reduce((total, live) => total + live, zero);
 };
 
 const writeLog = async (
@@ -156,7 +221,7 @@ const applySteps = async (
 	await mergeHistories(steps.filter((step) => step.action === "history"));
 	await Promise.all(
 		seats.flatMap((seat) =>
-			sharedDirectories.map(async (name) =>
+			movedDirectories.map(async (name) =>
 				removeEmptyDirectories(path.join(seat.directory, name)),
 			),
 		),
@@ -168,7 +233,8 @@ const applyMigration = async (
 	seats: readonly Seat[],
 	home: string,
 ): Promise<SetupReport> => {
-	if ((await liveSessions(seats)) > zero) {
+	const moves = steps.filter((step) => step.action !== "share");
+	if (moves.length > zero && (await liveSessions(seats)) > zero) {
 		return {
 			messages: [
 				"Quit every Claude session on every seat before cc migrate --apply; nothing was moved.",
@@ -178,7 +244,12 @@ const applyMigration = async (
 	}
 	const log = await writeLog(steps, home);
 	try {
-		await applySteps(steps, seats);
+		await applySteps(moves, seats);
+		await Promise.all(
+			steps
+				.filter((step) => step.action === "share")
+				.map(async (step) => shareRegistry(step)),
+		);
 	} catch {
 		return {
 			messages: [
