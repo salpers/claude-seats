@@ -31,13 +31,16 @@ When a seat is at its limit, `cc -r` moves your session to a different seat.
 
 ## Seats
 
-| Seat | Config directory | Keychain slot |
-|---|---|---|
-| `main` | `~/.claude` (`CLAUDE_CONFIG_DIR` unset) | `Claude Code-credentials` |
-| any other name | `~/.claude-<name>` | `Claude Code-credentials-<hash>` |
+A seat is one Claude Code login.
 
-Each seat keeps its own login.
-All seats share sessions, history and settings through `~/.claude-shared/` and `~/.claude`.
+| Seat | Login | Folder |
+|---|---|---|
+| `main` | Your normal Claude Code login | `~/.claude` |
+| Any other name | An extra login | `~/.claude-<name>` |
+
+- `main` is the login that `claude` uses without `cc`.
+- Each other seat is a Claude Code config folder (`CLAUDE_CONFIG_DIR`). To log in, run `cc @<name> auth login` one time.
+- All seats share sessions, history and memory through `~/.claude-shared/`, and settings through `~/.claude/settings.json`.
 
 ### Configure the seats
 
