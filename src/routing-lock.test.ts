@@ -1,4 +1,5 @@
 import { deepStrictEqual, ok, strictEqual } from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import {
 	mkdir,
 	mkdtemp,
@@ -18,6 +19,8 @@ import { parseClaims } from "./routing-files.ts";
 import { routeWithState } from "./routing-state.ts";
 
 const one = 1;
+// Above macOS and Linux pid_max, so no process can hold it.
+const deadPid = 2_147_483_647;
 const privateMode = 0o600;
 const modeBase = 0o1000;
 const unexpected = (): never => {
@@ -78,6 +81,20 @@ await test("a fresh lock times out without stealing it or reading seats", async 
 		reason: "routing busy; check routing.lock in the state directory",
 	});
 	await assertFiles(directory, ["routing.lock"]);
+});
+
+await test("a fresh lock whose owner process died is recovered at once", async (context: Context): Promise<void> => {
+	const directory = await fixture(context);
+	await mkdir(
+		path.join(
+			directory,
+			"routing.lock",
+			`owner-${String(deadPid)}-${randomUUID()}`,
+		),
+	);
+	const result = await routeWithState(directory, () => healthy);
+	ok(result.ok);
+	await assertFiles(directory, ["claims.json", "decisions.log"]);
 });
 
 await test("concurrent selectors recover an aged orphan lock and keep distinct reservations", async (context: Context): Promise<void> => {

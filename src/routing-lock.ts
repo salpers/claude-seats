@@ -53,10 +53,11 @@ const ownerIsDead = (owner: string): boolean => {
 	}
 };
 
-const recoverOwner = async (lock: string): Promise<boolean> => {
+const recoverOwner = async (lock: string, aged: boolean): Promise<boolean> => {
 	const entries = await readdir(lock);
 	if (entries.length === zero) {
-		return true;
+		// An ownerless legacy lock names no pid, so only its age shows it is orphaned.
+		return aged;
 	}
 	const [owner] = entries;
 	if (
@@ -76,10 +77,11 @@ const canAcquire = async (
 ): Promise<"ready" | "busy" | "unavailable"> => {
 	try {
 		const info = await lstat(lock);
-		if (!info.isDirectory() || Date.now() - info.mtimeMs <= staleMs) {
+		if (!info.isDirectory()) {
 			return "busy";
 		}
-		if (await recoverOwner(lock)) {
+		// A dead owner pid frees the lock at once; a killed selector must not block routing for staleMs.
+		if (await recoverOwner(lock, Date.now() - info.mtimeMs > staleMs)) {
 			return "ready";
 		}
 		return "busy";
